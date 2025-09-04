@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalini — Design Generator (API)</title>
+  <style>
+    :root{ --bg:#f7f8fb; --card:#ffffff; --text:#0f172a; --muted:#475467; --accent:#1d4ed8; --border:#d0d5dd; --danger:#e11d48; --ok:#059669 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1060px;margin:0 auto;padding:28px}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:-.01em;font-size:clamp(22px,3.6vw,30px)}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    label{display:block;margin:10px 0 6px;color:#344054;font-size:14px;font-weight:600}
+    input[type="file"], textarea, select{width:100%;border:1px solid var(--border);background:#ffffff;color:var(--text);padding:12px;border-radius:12px}
+    textarea{min-height:120px;resize:vertical}
+    .btn{margin-top:14px;display:inline-flex;gap:8px;align-items:center;justify-content:center;background:var(--accent);border:none;color:#fff;padding:12px 18px;border-radius:9999px;font-weight:800;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .status{margin-left:10px;color:#475467;font-size:14px}
+    .rl{margin-top:8px;font-size:13px;color:#475467}
+    .rl.ok{color:var(--ok)}
+    .rl.bad{color:var(--danger)}
+
+    /* Spinner (replaces progress bar) */
+    .spinner{display:none;gap:10px;align-items:center;margin-top:10px}
+    .spinner .wheel{width:18px;height:18px;border:3px solid #c7d2fe;border-top-color:var(--accent);border-radius:9999px;animation:spin 0.9s linear infinite}
+    .spinner .msg{font-size:13px;color:#667085}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .thumb{background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .thumb img{width:100%;height:auto;border-radius:10px;display:block}
+    .actions{display:flex;gap:8px;margin-top:8px}
+    .secondary{background:#f8fafc;border:1px solid var(--border);color:#344054;padding:10px 12px;border-radius:10px;text-decoration:none;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <!-- EDIT TEXT: Page title & explainer are injected from CONFIG_TEXT below -->
+      <h1 id="text-title">Vitalini Design Generator</h1>
+      <p id="text-subtitle" class="lead">Tell us what you want and pick a product model. Our system securely sends your request to our AI image service and shows the result here. Designs typically take <b>1–2 minutes</b>.</p>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <section class="card">
+        <label for="brief" id="text-brief-label">Design brief</label>
+        <textarea id="brief" placeholder="Describe the design… (logos get overlaid as hints)"></textarea>
+
+        <label for="model" style="margin-top:10px" id="text-model-label">Select model</label>
+        <!-- The options are injected from CONFIG_MODELS below -->
+        <select id="model"></select>
+        <div class="rl" id="text-model-help">Choose the product model.</div>
+
+        <label for="logos" style="margin-top:10px" id="text-logo-label">Upload logo (optional)</label>
+        <input id="logos" type="file" accept="image/*" multiple />
+        <div class="rl bad" id="text-logo-note">Can Impact Quality, Not Reccomended.</div>
+
+        <div class="rl" id="rlStatus">Checking rate limit…</div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="go" class="btn"><span id="text-generate">Generate</span></button>
+          <span class="status" id="status"></span>
+        </div>
+
+        <!-- Spinner replaces the old progress bar -->
+        <div id="spinner" class="spinner" aria-hidden="true">
+          <div class="wheel"></div>
+          <div class="msg" id="text-spinner-msg">Generating… This usually takes 1–2 minutes.</div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <h3 style="margin:4px 0 10px;font-size:18px" id="text-results-title">Results</h3>
+        <div id="gallery"></div>
+        <div class="rl" id="emptyState">No images yet. Click <b>Generate</b> to start.</div>
+      </section>
+    </div>
+
+    <!-- Hidden workbench canvas used to build the composite sent to the API -->
+    <canvas id="work" width="1024" height="1536" style="display:none"></canvas>
+  </div>
+
+  <script>
+    // ======================================================================
+    // 0) CONNECTION — EDIT THIS TO YOUR WORKER URL
+    // ----------------------------------------------------------------------
+    const PROXY_URL = 'https://vitalini1.faster-551.workers.dev/api/generate';
+
+    // ======================================================================
+    // 1) EDITABLE TEXT — ALL COPY FOR THE PAGE LIVES HERE
+    //    Change strings below to reword the UI. Nothing else to touch.
+    // ----------------------------------------------------------------------
+    const CONFIG_TEXT = {
+      title: 'Vitalini Design Generator',
+      subtitle: 'Tell us what you want and pick a product model. Our system securely sends your request to our AI image service and shows the result here. Designs typically take <b>1–2 minutes</b>.',
+      briefLabel: 'Design brief',
+      modelLabel: 'Select model',
+      modelHelp: 'Choose the product model.',
+      logoLabel: 'Upload logo (optional)',
+      logoNote: 'Can Impact Quality, Not Reccomended.',
+      generate: 'Generate',
+      spinnerMsg: 'Generqating… This usually takes 1–2 minutes.',
+      resultsTitle: 'Results'
+    };
+
+    // Applies CONFIG_TEXT to the DOM
+    function applyText(){
+      document.getElementById('text-title').innerHTML = CONFIG_TEXT.title;
+      document.getElementById('text-subtitle').innerHTML = CONFIG_TEXT.subtitle;
+      document.getElementById('text-brief-label').textContent = CONFIG_TEXT.briefLabel;
+      document.getElementById('text-model-label').textContent = CONFIG_TEXT.modelLabel;
+      document.getElementById('text-model-help').textContent = CONFIG_TEXT.modelHelp;
+      document.getElementById('text-logo-label').textContent = CONFIG_TEXT.logoLabel;
+      document.getElementById('text-logo-note').textContent = CONFIG_TEXT.logoNote;
+      document.getElementById('text-generate').textContent = CONFIG_TEXT.generate;
+      document.getElementById('text-spinner-msg').textContent = CONFIG_TEXT.spinnerMsg;
+      document.getElementById('text-results-title').textContent = CONFIG_TEXT.resultsTitle;
+    }
+
+    // ======================================================================
+    // 2) MODELS — ADD/EDIT YOUR PRODUCT MODELS HERE
+    //    You can have ANY number of models. For each model:
+    //    - id: internal value stored/sent in the prompt
+    //    - label: what shows in the dropdown
+    //    - preprompt: text we prepend before the user's brief to guide results
+    //    - baseSrc: URL/path to the source image for this model
+    //      (Recommended: host images in your GitHub Pages repo under /assets/models
+    //       and reference them with a relative path like './assets/models/VP9655.png'
+    //       so CORS is simple.)
+    // ----------------------------------------------------------------------
+    const CONFIG_MODELS = [
+      {
+        id: 'VP9655',
+        label: 'VP9655',
+        preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.',
+        baseSrc: './assets/models/VP9655_base.png' // <-- PUT YOUR IMAGE HERE
+      },
+      {
+        id: 'VP38',
+        label: 'VP38',
+        preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.',
+        baseSrc: './assets/models/VP38_base.png'
+      },
+      {
+        id: 'VP649',
+        label: 'VP649',
+        preprompt: 'High-fidelity e‑commerce photo of VP649. Maintain silhouette and stitching; ensure sponsor logos sit on appropriate zones.',
+        baseSrc: './assets/models/VP649_base.png'
+      },
+      {
+        id: 'VP106',
+        label: 'VP106',
+        preprompt: 'Realistic catalog photo of VP106. Balanced lighting, natural shadows. Preserve hardware details. Blend logos without distortion.',
+        baseSrc: './assets/models/VP106_base.png'
+      }
+    ];
+
+    // Populate the model dropdown from CONFIG_MODELS
+    function populateModels(){
+      const sel = document.getElementById('model');
+      sel.innerHTML = '';
+      for(const m of CONFIG_MODELS){
+        const opt = document.createElement('option');
+        opt.value = m.id; opt.textContent = m.label;
+        sel.appendChild(opt);
+      }
+    }
+
+    // ======================================================================
+    // 3) RATE LIMIT (client UX) — change numbers here if needed
+    // ----------------------------------------------------------------------
+    const RL_LIMIT = 500;                 // requests per 24h (client UX only)
+    const RL_WINDOW_MS = 24*60*60*1000; // 24h
+    const RL_KEY = 'vitalini_rl_v1';
+    const USER_KEY = 'vitalini_uid_v1';
+
+    const el = id => document.getElementById(id);
+    const work = el('work');
+    const ctx = work.getContext('2d');
+
+    function uuid(){
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+        const v = c==='x'? r : (r & 0x3 | 0x8); return v.toString(16);
+      });
+    }
+    function getUserId(){ let id = localStorage.getItem(USER_KEY); if(!id){ id = uuid(); localStorage.setItem(USER_KEY, id); } return id; }
+    function loadRL(){ try{ const raw = localStorage.getItem(RL_KEY); if(raw) return JSON.parse(raw);}catch(e){} const now = Date.now(); const st={used:0,resetAt:now+RL_WINDOW_MS}; localStorage.setItem(RL_KEY, JSON.stringify(st)); return st; }
+    function saveRL(st){ localStorage.setItem(RL_KEY, JSON.stringify(st)); }
+    function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
+    function updateRLStatus(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st);} const left=Math.max(0, RL_LIMIT-st.used); const rlEl=el('rlStatus'); rlEl.textContent = left>0? `You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).` : `Daily limit reached. Resets ${humanTime(st.resetAt)}.`; rlEl.className = 'rl ' + (left>0?'ok':'bad'); el('go').disabled = left<=0; }
+    function spendCredit(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; } if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
+    function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+
+    // ======================================================================
+    // 4) IMAGE PREP (composite builder)
+    // ----------------------------------------------------------------------
+    function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
+    async function urlToBitmap(url){ const res = await fetch(url, {mode:'cors'}); const blob = await res.blob(); return await createImageBitmap(blob); }
+    async function svgToImageBitmap(svg) { const blob = new Blob([svg], { type: 'image/svg+xml' }); const url = URL.createObjectURL(blob); const img = await createImageBitmap(await fetch(url).then(r=>r.blob())); URL.revokeObjectURL(url); return img; }
+    async function fileToBitmap(file){ return createImageBitmap(file); }
+
+    // Minimal fallback base if a model image is missing
+    const BLANK_SVG = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#ffffff"/><g transform="translate(100,60)"><rect x="20" y="40" width="560" height="900" rx="26" ry="26" fill="#f1f5f9" stroke="#cbd5e1"/></g></svg>`;
+
+    async function drawComposite({size, model, logos}){
+      const {w,h} = parseSize(size);
+      work.width=w; work.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
+      // Model-specific source image
+      let baseBmp = null;
+      try{ if(model.baseSrc) baseBmp = await urlToBitmap(model.baseSrc); }catch(e){ console.warn('Base load failed, using blank SVG:', e); }
+      if(!baseBmp){ baseBmp = await svgToImageBitmap(BLANK_SVG); }
+      const scale = Math.min(w/baseBmp.width, h/baseBmp.height);
+      const bw = baseBmp.width*scale, bh=baseBmp.height*scale; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(baseBmp, bx, by, bw, bh);
+
+      // Logos (optional) — simple smart spots for guidance
+      if(logos && logos.length){ const spots=[{x:0.33,y:0.28,w:0.14,h:0.08},{x:0.53,y:0.28,w:0.14,h:0.08},{x:0.76,y:0.45,w:0.12,h:0.08},{x:0.12,y:0.45,w:0.12,h:0.08},{x:0.35,y:0.62,w:0.30,h:0.15}];
+        for(let i=0;i<logos.length && i<spots.length;i++){ const bmp=await fileToBitmap(logos[i]); const s=spots[i]; const boxW=Math.floor(w*s.w), boxH=Math.floor(h*s.h); const dx=Math.floor(w*s.x), dy=Math.floor(h*s.y); const sT=Math.min(boxW/bmp.width, boxH/bmp.height); const dw=Math.floor(bmp.width*sT), dh=Math.floor(bmp.height*sT); const ox=dx+Math.floor((boxW-dw)/2), oy=dy+Math.floor((boxH-dh)/2); ctx.save(); ctx.globalAlpha=.95; ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp, ox, oy, dw, dh); ctx.restore(); }
+      }
+      return new Promise(resolve=> work.toBlob(resolve, 'image/png', 0.98));
+    }
+
+    async function makeTransparentMask(){ return new Promise(resolve=> work.toBlob(resolve, 'image/png')); }
+    function b64ToBlob(b64, mime='image/png'){ const bin=atob(b64); const len=bin.length; const bytes=new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes], {type:mime}); }
+
+    function addToGallery(blob){ el('emptyState').style.display='none'; const url = URL.createObjectURL(blob); const card=document.createElement('div'); card.className='thumb'; const img=document.createElement('img'); img.loading='lazy'; img.src=url; img.alt='Generated product'; const actions=document.createElement('div'); actions.className='actions'; const dl=document.createElement('a'); dl.className='secondary'; dl.href=url; dl.download='design.png'; dl.textContent='Download PNG'; actions.append(dl); card.append(img, actions); document.getElementById('gallery').prepend(card); }
+
+    // Prompt assembly: MODEL PREPROMPT + USER BRIEF + quality baseline
+    function buildPrompt(model, userText){
+      const base = 'High-fidelity studio product image, clean background, accurate materials and stitching. Integrate overlaid logos cleanly (no warping). Output a tall e‑commerce ready render.';
+      return `${model.preprompt}\n\n${userText}\n\n${base}`.trim();
+    }
+
+    // ======================================================================
+    // 5) PROXY CALL
+    // ----------------------------------------------------------------------
+    async function callProxy({prompt, size, n, compositeBlob}){
+      const maskBlob = await makeTransparentMask();
+      const userId = getUserId();
+      const form = new FormData();
+      form.append('model','gpt-image-1');
+      form.append('prompt', prompt);
+      form.append('size', size);
+      form.append('n', String(n));
+      form.append('background','transparent');
+      form.append('user_id', userId); // for server-side RL
+      form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
+      form.append('mask', new File([maskBlob], 'mask.png', {type:'image/png'}));
+
+      const res = await fetch(PROXY_URL, { method:'POST', body: form });
+      if(res.status === 429){ refundCredit(); const info = await res.json().catch(()=>({})); throw new Error(info.message || 'Rate limit exceeded.'); }
+      if(!res.ok){ refundCredit(); const text = await res.text(); throw new Error(`Proxy error ${res.status}: ${text}`); }
+      const data = await res.json();
+      if(!data || !data.data || !data.data.length) throw new Error('No image returned');
+      return data.data.map(x=> b64ToBlob(x.b64_json, 'image/png'));
+    }
+
+    // ======================================================================
+    // 6) UI FLOW
+    // ----------------------------------------------------------------------
+    const DEFAULT_SIZE = '1024x1536'; // fixed output
+    const DEFAULT_N = 1;              // one image
+
+    function showSpinner(on){ const sp=el('spinner'); sp.style.display = on? 'flex' : 'none'; }
+
+    async function generate(){
+      updateRLStatus(); if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+      try{
+        el('go').disabled=true; el('status').textContent='Preparing…'; showSpinner(true);
+        const userBrief = el('brief').value.trim();
+        const modelId = el('model').value;
+        const model = CONFIG_MODELS.find(m=>m.id===modelId) || CONFIG_MODELS[0];
+        const prompt = buildPrompt(model, userBrief);
+        const logos = [...el('logos').files];
+        const compositeBlob = await drawComposite({ size: DEFAULT_SIZE, model, logos });
+        const blobs = await callProxy({ prompt, size: DEFAULT_SIZE, n: DEFAULT_N, compositeBlob });
+        blobs.forEach(addToGallery);
+        el('status').textContent='Done.';
+      } catch(err){ console.error(err); el('status').textContent = 'Error: ' + err.message; }
+      finally { el('go').disabled=false; showSpinner(false); /* NOTE: we DO NOT clear the brief anymore */ }
+    }
+
+    document.getElementById('go').addEventListener('click', generate);
+
+    // init
+    applyText();
+    populateModels();
+    updateRLStatus();
+  </script>
+</body>
+</html>
