@@ -327,7 +327,6 @@
       form.append('background','transparent');
       form.append('user_id', userId); // for server-side RL
       form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
-      form.append('mask', new File([maskBlob], 'mask.png', {type:'image/png'}));
 
       const res = await fetch(PROXY_URL, { method:'POST', body: form });
       if(res.status === 429){ refundCredit(); const info = await res.json().catch(()=>({})); throw new Error(info.message || 'Rate limit exceeded.'); }
