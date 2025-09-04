@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalini — Design Generator (API)</title>
+  <style>
+    /* Light theme with subtle contrast */
+    :root{ --bg:#f7f8fb; --card:#ffffff; --text:#0f172a; --muted:#475467; --accent:#1d4ed8; --border:#d0d5dd; --danger:#e11d48; --ok:#059669 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1060px;margin:0 auto;padding:28px}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:-.01em;font-size:clamp(22px,3.6vw,30px)}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    label{display:block;margin:10px 0 6px;color:#344054;font-size:14px;font-weight:600}
+    input[type="file"], textarea, select{width:100%;border:1px solid var(--border);background:#ffffff;color:var(--text);padding:12px;border-radius:12px}
+    textarea{min-height:120px;resize:vertical}
+    .row{display:flex;gap:12px;align-items:center}
+    .row > *{flex:1}
+    .btn{margin-top:14px;display:inline-flex;gap:8px;align-items:center;justify-content:center;background:var(--accent);border:none;color:#fff;padding:12px 18px;border-radius:9999px;font-weight:800;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .status{margin-left:10px;color:#475467;font-size:14px}
+    .progress{margin-top:14px;background:#eef2f6;border:1px solid var(--border);border-radius:9999px;height:12px;overflow:hidden;display:none}
+    .bar{height:100%;width:0%;background:var(--accent);transition:width .25s linear}
+    .progress-text{margin-top:6px;font-size:13px;color:#667085;display:none}
+    .result{margin-top:16px;display:none}
+    .thumb{background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .thumb img{width:100%;height:auto;border-radius:10px;display:block}
+    .actions{display:flex;gap:8px;margin-top:8px}
+    .secondary{background:#f8fafc;border:1px solid var(--border);color:#344054;padding:10px 12px;border-radius:10px;text-decoration:none;text-align:center}
+    .rl{margin-top:8px;font-size:13px;color:#475467}
+    .rl.ok{color:var(--ok)}
+    .rl.bad{color:var(--danger)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <h1>Vitalini Design Generator</h1>
+      <p class="lead">Tell us what you want and pick a product model. Our system securely sends your request to our AI image service and shows the result here—no tech skills required.</p>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <section class="card">
+        <label for="brief">Design brief</label>
+        <textarea id="brief" placeholder="Describe the design… (logos get overlaid as hints)"></textarea>
+
+        <label for="model" style="margin-top:10px">Select model</label>
+        <select id="model">
+          <option value="VP9655" selected>VP9655</option>
+          <option value="VP38">VP38</option>
+          <option value="VP649">VP649</option>
+          <option value="VP106">VP106</option>
+        </select>
+        <div class="rl">Choose the product model.</div>
+
+        <label for="logos" style="margin-top:10px">Upload logo (optional)</label>
+        <input id="logos" type="file" accept="image/*" multiple />
+        <div class="rl bad">Can Impact Quality, Not Reccomended.</div>
+
+        <div style="margin-top:4px" class="rl" id="rlStatus">Checking rate limit…</div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="go" class="btn"><span id="goLabel">Generate</span></button>
+          <span class="status" id="status"></span>
+        </div>
+
+        <div id="progress" class="progress" aria-hidden="true"><div id="bar" class="bar"></div></div>
+        <div id="progressText" class="progress-text">Generating… 0%</div>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <h3 style="margin:4px 0 10px;font-size:18px">Results</h3>
+        <div id="gallery"></div>
+        <div class="rl" id="emptyState">No images yet. Click <b>Generate</b> to start.</div>
+      </section>
+    </div>
+
+    <!-- Hidden workbench canvas -->
+    <canvas id="work" width="1024" height="1536" style="display:none"></canvas>
+  </div>
+
+  <script>
+    // ======================= CONFIG (EDIT THESE) =======================
+    // 1) Your proxy endpoint (Cloudflare Worker / Vercel) that forwards to OpenAI.
+    //    For local testing with Vercel/CF Worker, set to your deployed URL. If you
+    //    mount the proxy under the same origin at /api/generate, leave as is.
+    const PROXY_URL = 'https://vitalini1.faster-551.workers.dev/api/generate';
+
+    // 2) Client‑side rate limit (UX only). Real enforcement happens on the proxy.
+    const RL_LIMIT = 10;                 // requests per window
+    const RL_WINDOW_MS = 24*60*60*1000; // 24h
+    const RL_KEY = 'vitalini_rl_v1';
+    const USER_KEY = 'vitalini_uid_v1';
+
+    // ======================= UTIL & STATE =======================
+    const el = id => document.getElementById(id);
+    const DEFAULT_SIZE = '1024x1536';
+    const DEFAULT_N = 1;
+    const work = el('work');
+    const ctx = work.getContext('2d');
+
+    function uuid(){ // tiny UUID-ish
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+        const v = c==='x'? r : (r & 0x3 | 0x8); return v.toString(16);
+      });
+    }
+
+    function getUserId(){
+      let id = localStorage.getItem(USER_KEY);
+      if(!id){ id = uuid(); localStorage.setItem(USER_KEY, id); }
+      return id;
+    }
+
+    function loadRL(){
+      try{
+        const raw = localStorage.getItem(RL_KEY);
+        if(raw){ const st = JSON.parse(raw); return st; }
+      }catch(e){}
+      const now = Date.now();
+      const st = { used:0, resetAt: now + RL_WINDOW_MS };
+      localStorage.setItem(RL_KEY, JSON.stringify(st));
+      return st;
+    }
+
+    function saveRL(st){ localStorage.setItem(RL_KEY, JSON.stringify(st)); }
+
+    function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
+
+    function updateRLStatus(){
+      const st = loadRL(); const now=Date.now();
+      if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st); }
+      const left = Math.max(0, RL_LIMIT - st.used);
+      const rlEl = el('rlStatus');
+      rlEl.textContent = left>0 ? `You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).` : `Daily limit reached. Resets ${humanTime(st.resetAt)}.`;
+      rlEl.className = 'rl ' + (left>0? 'ok':'bad');
+      el('go').disabled = left<=0;
+    }
+
+    function spendCredit(){ const st = loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; }
+      if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
+
+    function refundCredit(){ const st = loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+
+    function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
+
+    async function svgToImageBitmap(svg) { const blob = new Blob([svg], { type: 'image/svg+xml' }); const url = URL.createObjectURL(blob); const img = await createImageBitmap(await fetch(url).then(r=>r.blob())); URL.revokeObjectURL(url); return img; }
+    async function fileToBitmap(file){ return createImageBitmap(file); }
+
+    // Default blank jacket SVG (can replace with your own PNG/SVG)
+    const BLANK_JACKET_SVG = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f2f3f5"/><stop offset="1" stop-color="#d9dde2"/></linearGradient></defs><rect width="800" height="1200" fill="#ffffff"/><g transform="translate(100,60)"><path d="M300 0c110 8 154 80 170 120l70 30c15 7 28 24 25 42-10 62-50 85-87 94-3 111-7 274-22 352-23 123-106 200-156 216-50-16-133-93-156-216-15-78-19-241-22-352-37-9-77-32-87-94-3-18 10-35 25-42l70-30C146 80 190 8 300 0z" fill="url(#g)" stroke="#b9c0c8" stroke-width="3"/><rect x="292" y="130" width="16" height="520" fill="#c5cbd3"/><path d="M260 130h80c8 0 15 7 15 15v10H245v-10c0-8 7-15 15-15z" fill="#c5cbd3"/><circle cx="300" cy="220" r="12" fill="#b8bec6"/><path d="M120 320c40-10 90-20 180-20s140 10 180 20" fill="none" stroke="#cbd2da" stroke-width="3"/></g></svg>`;
+
+    async function drawComposite({size, baseFile, logos}){
+      const {w,h} = parseSize(size);
+      work.width=w; work.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
+      if(baseFile){ const base = await fileToBitmap(baseFile); const scale = Math.min(w/base.width, h/base.height); const bw = base.width*scale, bh=base.height*scale; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(base, bx, by, bw, bh); }
+      else { const base = await svgToImageBitmap(BLANK_JACKET_SVG); const scale = Math.min(w/base.width, h/base.height); const bw = base.width*scale, bh=base.height*scale; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(base, bx, by, bw, bh); }
+      if(logos && logos.length){ const spots = [ {x:0.33,y:0.28,w:0.14,h:0.08}, {x:0.53,y:0.28,w:0.14,h:0.08}, {x:0.76,y:0.45,w:0.12,h:0.08}, {x:0.12,y:0.45,w:0.12,h:0.08}, {x:0.35,y:0.62,w:0.30,h:0.15} ];
+        for(let i=0;i<logos.length && i<spots.length;i++){ const bmp = await fileToBitmap(logos[i]); const s = spots[i]; const boxW = Math.floor(w*s.w), boxH = Math.floor(h*s.h); const dx = Math.floor(w*s.x), dy = Math.floor(h*s.y); const scale = Math.min(boxW/bmp.width, boxH/bmp.height); const dw = Math.floor(bmp.width*scale), dh = Math.floor(bmp.height*scale); const ox = dx + Math.floor((boxW-dw)/2), oy = dy + Math.floor((boxH-dh)/2); ctx.save(); ctx.globalAlpha = 0.95; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(bmp, ox, oy, dw, dh); ctx.restore(); }
+      }
+      return new Promise(resolve=> work.toBlob(resolve, 'image/png', 0.98));
+    }
+
+    async function makeTransparentMask(){ return new Promise(resolve=> work.toBlob(resolve, 'image/png')); }
+
+    function b64ToBlob(b64, mime='image/png'){ const bin = atob(b64); const len = bin.length; const bytes=new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes], {type:mime}); }
+
+    function addToGallery(blob){ el('emptyState').style.display='none'; const url = URL.createObjectURL(blob); const card = document.createElement('div'); card.className = 'thumb'; const img = document.createElement('img'); img.loading='lazy'; img.src=url; img.alt='Generated jacket'; const actions = document.createElement('div'); actions.className='actions'; const dl = document.createElement('a'); dl.className='secondary'; dl.href=url; dl.download='jacket.png'; dl.textContent='Download PNG'; actions.append(dl); card.append(img, actions); el('gallery').prepend(card); }
+
+    function scaffoldPrompt(userText){ const base = `High-fidelity studio product photo of a technical racing jacket on invisible mannequin, crisp front view. Realistic woven fabric, subtle sheen, accurate stitching, natural shadowing. Integrate the overlaid sponsor logos cleanly (no warping), place small logos on chest, medium on sleeves, and a large back print. Keep proportions and readability. E‑commerce ready render.`; return userText ? `${userText}\n\n${base}` : base; }
+
+    async function callProxy({prompt, size, n, compositeBlob}){
+      const maskBlob = await makeTransparentMask();
+      const userId = getUserId();
+      const form = new FormData();
+      form.append('model','gpt-image-1');
+      form.append('prompt', prompt);
+      form.append('size', size);
+      form.append('n', String(n));
+      form.append('background','transparent');
+      form.append('user_id', userId); // for server-side RL
+      form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
+      form.append('mask', new File([maskBlob], 'mask.png', {type:'image/png'}));
+
+      const res = await fetch(PROXY_URL, { method:'POST', body: form });
+      if(res.status === 429){ refundCredit(); const info = await res.json().catch(()=>({})); throw new Error(info.message || 'Rate limit exceeded.'); }
+      if(!res.ok){ refundCredit(); const text = await res.text(); throw new Error(`Proxy error ${res.status}: ${text}`); }
+      const data = await res.json();
+      if(!data || !data.data || !data.data.length) throw new Error('No image returned');
+      return data.data.map(x=> b64ToBlob(x.b64_json, 'image/png'));
+    }
+
+    async function runProgress(donePromise){
+      // Non-linear progress: 0→65% by ~13s, hold to 14s (99%), then 100% when done
+      const bar = el('bar'); const pt = el('progressText');
+      el('progress').style.display='block'; pt.style.display='block';
+      let start = performance.now(); let t1=13000, t2=14000; let raf;
+      let finished=false;
+      const tick = ()=>{
+        const elapsed = performance.now() - start;
+        let pct=0;
+        if(elapsed < t1){ pct = Math.round((elapsed/t1)*65); }
+        else if(elapsed < t2){ pct = 65; }
+        else { pct = 99; }
+        bar.style.width = pct + '%'; pt.textContent = `Generating… ${pct}%`;
+        if(!finished) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      try{ await donePromise; finished=true; cancelAnimationFrame(raf); bar.style.width='100%'; pt.textContent='Generating… 100%'; }
+      finally{ setTimeout(()=>{ el('progress').style.display='none'; pt.style.display='none'; bar.style.width='0%'; }, 600); }
+    }
+
+    async function generate(){
+      updateRLStatus();
+      if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+
+      try{
+        el('go').disabled=true; el('goLabel').textContent='Generating…'; el('status').textContent='Preparing…';
+        const size = DEFAULT_SIZE; const n = DEFAULT_N; const brief = el('brief').value.trim(); const model = el('model').value;
+        const prompt = scaffoldPrompt(`${brief}
+
+Product model: ${model}`);
+        const baseFile = null; // using built-in default base const logos = [...el('logos').files];
+        const compositeBlob = await drawComposite({ size, baseFile, logos });
+
+        const task = callProxy({ prompt, size, n, compositeBlob });
+        await Promise.all([ runProgress(task), task.then(blobs=>{ blobs.forEach(addToGallery); }) ]);
+        el('status').textContent='Done.';
+      } catch(err){ console.error(err); el('status').textContent = 'Error: ' + err.message; }
+      finally { el('go').disabled=false; el('goLabel').textContent='Generate'; el('brief').value=''; }
+    }
+
+    document.getElementById('go').addEventListener('click', generate);
+
+    // init
+    updateRLStatus();
+
+  </script>
+</body>
+</html>
