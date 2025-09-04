@@ -99,7 +99,7 @@
     const CONFIG_TEXT = {
       title: 'Vitalini Design Generator',
       subtitle: 'Tell us what you want and pick a product model. Our system uses AI image generation to create your design, that can later be sent to our design team as a guide. Designs typically take <b>1–2 minutes</b>.',
-      briefLabel: 'Your design',
+      briefLabel: 'Your Design',
       modelLabel: 'Select model',
       modelHelp: 'Choose the product model.',
       logoLabel: 'Upload logo (optional)',
@@ -142,21 +142,33 @@
         baseSrc: './assets/models/VP9655_base.png' // <-- PUT YOUR IMAGE HERE
       },
       {
+        id: 'VP9655F',
+        label: 'VP9655 Ski Jacket Front view',
+        preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.',
+        baseSrc: './assets/models/VP9655_base.png' // <-- PUT YOUR IMAGE HERE
+      },
+      {
         id: 'VP38',
         label: 'VP38 Race Suit',
         preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.',
         baseSrc: './assets/models/VP38_base.png'
       },
       {
+        id: 'VP38F',
+        label: 'VP38 Race Suit Front view',
+        preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.',
+        baseSrc: './assets/models/VP38_base.png'
+      },
+      {
         id: 'VP649',
         label: 'VP649 Ski Pants',
-        preprompt: 'High-fidelity e‑commerce photo of VP649. Maintain silhouette and stitching; ensure sponsor logos sit on appropriate zones.',
+        preprompt: '',
         baseSrc: './assets/models/VP649_base.png'
       },
       {
         id: 'VP106',
         label: 'VP106 Vest',
-        preprompt: 'Realistic catalog photo of VP106. Balanced lighting, natural shadows. Preserve hardware details. Blend logos without distortion.',
+        preprompt: '',
         baseSrc: './assets/models/VP106_base.png'
       }
     ];
