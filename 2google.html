@@ -232,7 +232,7 @@
     function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
 
     // ==================== 4) Canvas composite ===============
-    const DEFAULT_SIZE = '1024x1024';
+    const DEFAULT_SIZE = '1024x1536';
     function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
     async function urlToBitmap(url){ const res=await fetch(url,{mode:'cors'}); const blob=await res.blob(); return await createImageBitmap(blob); }
     async function fileToBitmap(file){ return createImageBitmap(file); }
