@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalini Designer</title>
+  <style>
+    :root{ --bg:#f7f8fb; --card:#ffffff; --text:#0f172a; --muted:#475467; --accent:#1d4ed8; --border:#d0d5dd; --danger:#e11d48; --ok:#059669 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1060px;margin:0 auto;padding:28px}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:-.01em;font-size:clamp(22px,3.6vw,30px)}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    label{display:block;margin:10px 0 6px;color:#344054;font-size:14px;font-weight:600}
+    input[type="file"], textarea, select{width:100%;border:1px solid var(--border);background:#ffffff;color:#0f172a;padding:12px;border-radius:12px}
+    textarea{min-height:120px;resize:vertical}
+    .btn,.secondary{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border-radius:9999px;font-weight:800;line-height:1;border:1px solid transparent;cursor:pointer;text-decoration:none;text-align:center}
+    .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .secondary{background:#e5e7eb;border:1px solid var(--border);color:#111827}
+    .secondary:hover{background:#e2e8f0}
+    .status{margin-left:10px;color:#475467;font-size:14px}
+    .rl{margin-top:8px;font-size:13px;color:#475467}
+    .rl.ok{color:var(--ok)}
+    .rl.bad{color:var(--danger)}
+
+    /* Spinner */
+    .spinner{display:none;gap:10px;align-items:center;margin-top:10px}
+    .spinner .wheel{width:18px;height:18px;border:3px solid #c7d2fe;border-top-color:var(--accent);border-radius:9999px;animation:spin 0.9s linear infinite}
+    .spinner .msg{font-size:13px;color:#667085}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .thumb{position:relative;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .thumb img{width:100%;height:auto;border-radius:10px;display:block}
+    .savefab{position:absolute;right:12px;bottom:12px;background:#ffffffcc;border:1px solid var(--border);padding:8px 12px;border-radius:9999px;font-weight:700;cursor:pointer;backdrop-filter:saturate(140%) blur(2px)}
+    .badge{position:absolute;left:12px;top:12px;background:#ffffffcc;border:1px solid var(--border);padding:2px 8px;border-radius:9999px;font-weight:700;font-size:12px;backdrop-filter:saturate(140%) blur(2px)}
+
+    /* Color selector */
+    .color-row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:6px}
+    .swatch{position:relative;width:44px;height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .swatch .clear{display:none;position:absolute;top:-8px;right:-8px;background:#fff;border:1px solid var(--border);border-radius:9999px;width:20px;height:20px;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
+    .swatch.hasColor .clear{display:block}
+
+    /* Modal backdrop (email gate & color picker) */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:420px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,.18);position:relative}
+    .modal h3{margin:0 0 12px;font-size:18px}
+    .modal-footer{margin-top:12px;display:flex;gap:8px;justify-content:flex-end}
+
+    /* Contact drawer */
+    .drawer{position:fixed;right:0;top:0;bottom:0;width:440px;max-width:100%;background:#fff;border-left:1px solid var(--border);transform:translateX(100%);transition:transform .25s ease;z-index:60;display:flex;flex-direction:column}
+    .drawer.open{transform:translateX(0)}
+    .drawer header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+    .drawer main{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+    .drawer .thumbs{display:flex;gap:8px;overflow:auto;padding-bottom:6px}
+    .drawer .mini{position:relative;border:1px solid var(--border);border-radius:10px;min-width:120px}
+    .drawer .mini img{display:block;width:120px;height:auto;border-radius:10px}
+    .drawer .mini .kill{position:absolute;top:4px;right:4px;background:#fff;border:1px solid var(--border);border-radius:9999px;width:22px;height:22px;line-height:18px;text-align:center;cursor:pointer}
+    .drawer footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+    /* Custom colour picker (unchanged basics) */
+    .picker{display:flex;flex-direction:column;gap:10px;align-items:center}
+    .sv{position:relative;width:240px;height:160px;border-radius:10px;border:1px solid var(--border);cursor:crosshair;background: red;
+      background-image:linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)),linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0));}
+    .sv .cursor{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #0005;transform:translate(-6px,-6px)}
+    .hue{width:240px;height:12px;border-radius:8px;appearance:none;-webkit-appearance:none;background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);outline:none;border:1px solid var(--border)}
+    .hue::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #111;box-shadow:0 0 0 2px #0002;margin-top:-4px}
+    .preview{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <h1 id="text-title">Vitalini Design Generator — Gemini</h1>
+      <p id="text-subtitle" class="lead">Tell us what you want and pick a product model. This version uses <b>Google Gemini 2.5 Flash Image</b> via our secure proxy. Results usually take <b>1–2 minutes</b>.</p>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <section class="card">
+        <label for="model" id="text-model-label">Select model</label>
+        <select id="model"></select>
+
+        <label for="brief" id="text-brief-label">Your Design</label>
+        <textarea id="brief" placeholder="Describe the design… (logos get overlaid as hints)"></textarea>
+
+        <label id="text-colors-label" style="margin-top:10px">Primary colours (optional)</label>
+        <div id="colorRow" class="color-row">
+          <div class="swatch empty" data-idx="0" title="Pick color 1"><button class="clear" type="button" aria-label="Clear color">×</button></div>
+          <div class="swatch empty" data-idx="1" title="Pick color 2"><button class="clear" type="button" aria-label="Clear color">×</button></div>
+          <div class="swatch empty" data-idx="2" title="Pick color 3"><button class="clear" type="button" aria-label="Clear color">×</button></div>
+        </div>
+
+        <label for="logos" style="margin-top:10px" id="text-logo-label">Upload logo (optional)</label>
+        <input id="logos" type="file" accept="image/*" multiple />
+        <div class="rl" id="text-logo-note"></div>
+
+        <div class="rl" id="rlStatus">Checking rate limit…</div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="go" class="btn"><span id="text-generate">Generate</span></button>
+          <button id="btnContact" class="secondary">Contact Design Team</button>
+          <span class="status" id="status"></span>
+        </div>
+
+        <div id="spinner" class="spinner" aria-hidden="true">
+          <div class="wheel"></div>
+          <div class="msg" id="text-spinner-msg">Generating… This usually takes 1–2 minutes.</div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <h3 style="margin:4px 0 10px;font-size:18px" id="text-results-title">Results</h3>
+        <div id="gallery"></div>
+        <div class="rl" id="emptyState">No images yet. Click <b>Generate</b> to start.</div>
+      </section>
+    </div>
+
+    <canvas id="work" width="1024" height="1024" style="display:none"></canvas>
+  </div>
+
+  <!-- Email Gate Modal -->
+  <div id="gateBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+      <h3 id="gateTitle">Continue with your email</h3>
+      <label for="gateEmail">Email</label>
+      <input id="gateEmail" type="email" placeholder="you@example.com" />
+      <div style="margin-top:10px">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:500">
+          <input id="chkPP" type="checkbox" /> I’ve read & accept the <a id="ppLink" href="#" target="_blank">Privacy Policy</a> and <a id="tosLink" href="#" target="_blank">Terms</a>.
+        </label>
+      </div>
+      <div style="margin-top:6px">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:500">
+          <input id="chkMarketing" type="checkbox" /> I agree to receive updates & promotions from Vitalini (optional).
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="gateCancel" type="button" class="secondary">Cancel</button>
+        <button id="gateContinue" type="button" class="btn" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Drawer -->
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <header>
+      <strong>Contact Design Team</strong>
+      <button id="drawerClose" class="secondary" style="height:34px">Close</button>
+    </header>
+    <main>
+      <label>Email</label>
+      <input id="contactEmail" type="email" placeholder="you@example.com" />
+      <label>Description</label>
+      <textarea id="contactDesc" placeholder="Tell us what you need…"></textarea>
+      <label>Your generated images</label>
+      <div id="thumbStrip" class="thumbs"></div>
+    </main>
+    <footer>
+      <button id="contactSend" class="btn">Send</button>
+    </footer>
+  </aside>
+
+  <!-- Color picker modal (reuses styles) -->
+  <div id="colorModalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div id="colorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="colorModalTitle">
+      <h3 id="colorModalTitle">Pick a colour</h3>
+      <div class="picker">
+        <div id="sv" class="sv"><div id="svCursor" class="cursor"></div></div>
+        <input id="hue" class="hue" type="range" min="0" max="359" value="0" />
+        <div id="preview" class="preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="modalCancel" type="button" class="secondary">Cancel</button>
+        <button id="modalDone" type="button" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ==================== CONFIG ====================
+const PROXY_URL = 'https://google.faster-551.workers.dev/api/generate-gemini';
+const API_BASE  = '';
+const PRIVACY_URL = 'https://vitalini.example/privacy';
+const TERMS_URL   = 'https://vitalini.example/terms';
+const PRIVACY_VERSION = '2025-09-01';
+
+// ==================== Editable Text =================
+const CONFIG_TEXT = {
+  title: 'Vitalini Design Generator (Google AI)',
+  subtitle: 'Select a model, describe a design, optionally pick colours and upload a logo. Use AI to generate drafts you can send to our design team. (~1 min)',
+  modelLabel: 'Select model',
+  briefLabel: 'Your Design',
+  briefPlaceholder: 'Include as much detail as possible, including colours even if you also select them below.',
+  colorsLabel: 'Primary colours (optional)',
+  logoLabel: 'Upload logo (optional)',
+  logoNote: '',
+  generate: 'Generate',
+  spinnerMsg: 'Generating… This usually takes ~1 minute.',
+  resultsTitle: 'Results'
+};
+
+const el = (id)=>document.getElementById(id);
+function applyText(){
+  el('text-title').innerHTML = CONFIG_TEXT.title;
+  el('text-subtitle').innerHTML = CONFIG_TEXT.subtitle;
+  el('text-model-label').textContent = CONFIG_TEXT.modelLabel;
+  el('text-brief-label').textContent = CONFIG_TEXT.briefLabel;
+  if (CONFIG_TEXT.briefPlaceholder) el('brief').placeholder = CONFIG_TEXT.briefPlaceholder;
+  el('text-colors-label').textContent = CONFIG_TEXT.colorsLabel;
+  el('text-logo-label').textContent = CONFIG_TEXT.logoLabel;
+  const note = el('text-logo-note');
+  if (CONFIG_TEXT.logoNote?.trim()) { note.style.display='block'; note.textContent=CONFIG_TEXT.logoNote; }
+  else { note.style.display='none'; }
+  el('text-generate').textContent = CONFIG_TEXT.generate;
+  el('text-spinner-msg').textContent = CONFIG_TEXT.spinnerMsg;
+  el('text-results-title').textContent = CONFIG_TEXT.resultsTitle;
+  el('ppLink').href = PRIVACY_URL; el('tosLink').href = TERMS_URL;
+}
+
+// ==================== Models ========================
+const CONFIG_MODELS = [
+  { id: 'VP9655',  label: 'VP9655 Ski Jacket',              preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.', baseSrc: './assets/models/VP9655_base.png' },
+  { id: 'VP38',    label: 'VP38 Race Suit',                 preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
+  { id: 'VP106',   label: 'VP106 Vest',                     preprompt: '', baseSrc: './assets/models/VP106_base.png' },
+  { id: 'VP649',   label: 'VP649 Ski Pants',                preprompt: '', baseSrc: './assets/models/VP649_base.png' }
+];
+function populateModels(){ const sel=el('model'); sel.innerHTML=''; CONFIG_MODELS.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.label; sel.appendChild(o); }); }
+
+// ==================== RL (client UX) =================
+const RL_LIMIT = 500; const RL_WINDOW_MS = 24*60*60*1000; const RL_KEY='vitalini_rl_v2'; const USER_KEY='vitalini_uid_v2';
+function uuid(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{ const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; const v=c==='x'?r:(r&0x3|0x8); return v.toString(16); }); }
+function getUserId(){ let id=localStorage.getItem(USER_KEY); if(!id){ id=uuid(); localStorage.setItem(USER_KEY,id);} return id; }
+function loadRL(){ try{ const raw=localStorage.getItem(RL_KEY); if(raw) return JSON.parse(raw);}catch{} const now=Date.now(); const st={used:0,resetAt:now+RL_WINDOW_MS}; localStorage.setItem(RL_KEY, JSON.stringify(st)); return st; }
+function saveRL(st){ localStorage.setItem(RL_KEY, JSON.stringify(st)); }
+function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
+function updateRLStatus(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st);} const left=Math.max(0, RL_LIMIT - st.used); const e=el('rlStatus'); e.textContent = left>0?`You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).`:`Daily limit reached. Resets ${humanTime(st.resetAt)}.`; e.className='rl ' + (left>0?'ok':'bad'); el('go').disabled=left<=0; }
+function spendCredit(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; } if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
+function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+
+// ==================== Colours & Prompt =================
+const selectedColors = [null,null,null];
+function hexUpper(v){ return (v||'').toUpperCase(); }
+function buildColorsLine(colors){ const present = colors.map((c,i)=> c? `${i+1}: ${hexUpper(c)}`: null).filter(Boolean); return present.length ? `Primary colours: ${present.join('  ')}` : ''; }
+function buildPrompt(model, userText, colors){
+  const base='High‑fidelity studio product image, clean background, accurate materials and stitching. Integrate overlaid logos cleanly (no warping). Output a square e‑commerce ready render.';
+  const colorLine = buildColorsLine(colors);
+  return [model.preprompt, userText, colorLine, base].filter(Boolean).join('\n\n');
+}
+
+// ==================== Canvas composite =================
+const work = el('work'); const ctx = work.getContext('2d');
+const DEFAULT_SIZE = '1024x1024';
+function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
+async function urlToBitmap(url){ const res=await fetch(url,{mode:'cors'}); const blob=await res.blob(); return await createImageBitmap(blob); }
+async function fileToBitmap(file){ return createImageBitmap(file); }
+const BLANK_SVG = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#ffffff"/><g transform="translate(100,60)"><rect x="20" y="40" width="560" height="900" rx="26" ry="26" fill="#f1f5f9" stroke="#cbd5e1"/></g></svg>`;
+
+async function drawComposite({size, model, logos}){
+  const {w,h} = parseSize(size);
+  work.width=w; work.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+  let baseBmp=null; try{ if(model.baseSrc) baseBmp=await urlToBitmap(model.baseSrc);}catch(e){ console.warn('Base load failed, using blank:', e); }
+  if(!baseBmp){ const blob=new Blob([BLANK_SVG],{type:'image/svg+xml'}); const url=URL.createObjectURL(blob); baseBmp=await createImageBitmap(await fetch(url).then(r=>r.blob())); URL.revokeObjectURL(url); }
+  const scale=Math.min(w/baseBmp.width, h/baseBmp.height); const bw=baseBmp.width*scale, bh=baseBmp.height*scale; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(baseBmp,bx,by,bw,bh);
+  const spots=[{x:0.33,y:0.28,w:0.14,h:0.08},{x:0.53,y:0.28,w:0.14,h:0.08},{x:0.76,y:0.45,w:0.12,h:0.08},{x:0.12,y:0.45,w:0.12,h:0.08},{x:0.35,y:0.62,w:0.30,h:0.15}];
+  if(logos && logos.length){ for(let i=0;i<logos.length && i<spots.length;i++){ const bmp=await fileToBitmap(logos[i]); const s=spots[i]; const boxW=Math.floor(w*s.w), boxH=Math.floor(h*s.h); const dx=Math.floor(w*s.x), dy=Math.floor(h*s.y); const sT=Math.min(boxW/bmp.width, boxH/bmp.height); const dw=Math.floor(bmp.width*sT), dh=Math.floor(bmp.height*sT); const ox=dx+Math.floor((boxW-dw)/2), oy=dy+Math.floor((boxH-dh)/2); ctx.save(); ctx.globalAlpha=.95; ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp, ox, oy, dw, dh); ctx.restore(); } }
+  return new Promise(resolve=> work.toBlob(resolve,'image/png',0.98));
+}
+
+// ==================== API helpers =====================
+function getUID(){ return getUserId(); }
+function b64ToBlob(b64, mime='image/png'){ const bin=atob(b64); const len=bin.length; const bytes=new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes],{type:mime}); }
+
+async function apiRegister({email, acceptPP, marketing}){
+  const uid = getUID();
+  const res = await fetch(`${API_BASE}/api/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid, email, pp_accept: !!acceptPP, pp_version: PRIVACY_VERSION, marketing_optin: !!marketing }) });
+  if(!res.ok) throw new Error('Register failed');
+  return res.json();
+}
+
+async function apiFetchImages(){
+  const uid = getUID();
+  const res = await fetch(`${API_BASE}/api/images?uid=${encodeURIComponent(uid)}`);
+  if(!res.ok) return [];
+  const j = await res.json();
+  return j.images || [];
+}
+
+async function apiContact({email, description, image_ids}){
+  const uid = getUID();
+  const res = await fetch(`${API_BASE}/api/contact`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid, email, description, image_ids }) });
+  if(!res.ok) throw new Error('Contact failed');
+  return res.json();
+}
+
+async function callProxy({prompt, size, compositeBlob}){
+  const userId = getUID();
+  const form = new FormData();
+  form.append('prompt', prompt);
+  form.append('size', size);
+  form.append('user_id', userId);
+  form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
+
+  const res = await fetch(PROXY_URL, { method:'POST', body: form });
+  if(res.status===429){ refundCredit(); const info=await res.json().catch(()=>({})); throw new Error(info.message||'Rate limit exceeded.'); }
+  if(!res.ok){ refundCredit(); const text=await res.text().catch(()=> ''); throw new Error(`Proxy error ${res.status}: ${text}`); }
+  const data = await res.json();
+  return data; // expects: { data:[{b64_json}], images:[{id,index,url}], ... }
+}
+
+// ==================== Gallery ========================
+const gallery = el('gallery'); let imageCount = 0; const imageStore = new Map(); // id -> {id,index,url}
+
+function addCard({id,index,url,blob}){
+  el('emptyState').style.display='none';
+  const card=document.createElement('div'); card.className='thumb';
+  const badge=document.createElement('span'); badge.className='badge'; badge.textContent = `#${index ?? ++imageCount}`;
+  const img=document.createElement('img'); img.loading='lazy';
+  if (url) img.src = url; else if (blob){ const ob=URL.createObjectURL(blob); img.src=ob; }
+  img.alt='Generated product';
+  const btn=document.createElement('button'); btn.className='savefab'; btn.type='button'; btn.textContent='Save';
+  btn.addEventListener('click',()=>{
+    if(url){ const a=document.createElement('a'); a.href=url; a.download=`design_${index||''}.png`; a.click(); }
+    else if(blob){ const file=new File([blob],'design.png',{type:'image/png'}); const a=document.createElement('a'); const ob=URL.createObjectURL(file); a.href=ob; a.download='design.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(ob),1000); }
+  });
+  card.append(badge,img,btn); gallery.prepend(card);
+}
+
+async function bootstrapGallery(){
+  const images = await apiFetchImages();
+  if(!images.length){ el('emptyState').style.display='block'; return; }
+  images.sort((a,b)=>b.index-a.index).forEach(rec=>{ imageStore.set(rec.id,rec); addCard(rec); });
+}
+
+// ==================== Email Gate =====================
+const gate = { back: el('gateBackdrop'), email: el('gateEmail'), chkPP: el('chkPP'), chkM: el('chkMarketing'), btnOk: el('gateContinue'), btnCancel: el('gateCancel') };
+function openGate(){ gate.back.style.display='flex'; validateGate(); }
+function closeGate(){ gate.back.style.display='none'; }
+function validateGate(){ const ok = gate.email.value.includes('@') && gate.chkPP.checked; gate.btnOk.disabled = !ok; }
+['input','change'].forEach(ev=>{ gate.email.addEventListener(ev, validateGate); gate.chkPP.addEventListener(ev, validateGate); });
+
+gate.btnCancel.addEventListener('click', closeGate);
+
+gate.btnOk.addEventListener('click', async()=>{
+  try{
+    const r = await apiRegister({ email: gate.email.value.trim(), acceptPP: gate.chkPP.checked, marketing: gate.chkM.checked });
+    localStorage.setItem('vitalini_email', gate.email.value.trim());
+    localStorage.setItem('vitalini_marketing_pending', String(!!r.marketing_pending));
+    closeGate();
+    // continue the pending generation if user clicked Generate
+    if(window.__pendingGenerate){ window.__pendingGenerate=false; generate(); }
+  }catch(e){ alert('Unable to register: '+e.message); }
+});
+
+// ==================== Contact Drawer =================
+const drawer = { el: el('drawer'), close: el('drawerClose'), email: el('contactEmail'), desc: el('contactDesc'), strip: el('thumbStrip'), send: el('contactSend') };
+
+function openDrawer(){ drawer.el.classList.add('open'); const em = localStorage.getItem('vitalini_email'); if(em) drawer.email.value = em; hydrateStrip(); }
+function closeDrawer(){ drawer.el.classList.remove('open'); }
+
+document.getElementById('btnContact').addEventListener('click', openDrawer);
+drawer.close.addEventListener('click', closeDrawer);
+
+drawer.send.addEventListener('click', async()=>{
+  const email = drawer.email.value.trim(); const description = drawer.desc.value.trim();
+  if(!email.includes('@')) return alert('Please enter a valid email.');
+  const ids=[]; drawer.strip.querySelectorAll('[data-id]').forEach(tile=>{ if(!tile.classList.contains('off')) ids.push(tile.dataset.id); });
+  try{ await apiContact({ email, description, image_ids: ids }); alert('Sent! Our team will get back to you.'); closeDrawer(); }
+  catch(e){ alert('Failed to send: '+e.message); }
+});
+
+function hydrateStrip(){
+  drawer.strip.innerHTML='';
+  const items = Array.from(imageStore.values()).sort((a,b)=>a.index-b.index);
+  items.forEach(rec=>{
+    const d=document.createElement('div'); d.className='mini'; d.dataset.id=rec.id;
+    const img=document.createElement('img'); img.src = rec.url; img.alt = `#${rec.index}`;
+    const kill=document.createElement('button'); kill.className='kill'; kill.textContent='×'; kill.title='Remove';
+    kill.addEventListener('click',()=>{ d.classList.toggle('off'); d.style.opacity = d.classList.contains('off')? .4: 1; });
+    const badge=document.createElement('span'); badge.className='badge'; badge.textContent=`#${rec.index}`; badge.style.left='8px'; badge.style.top='8px';
+    d.append(img, badge, kill); drawer.strip.append(d);
+  });
+}
+
+// ==================== Color modal logic =================
+let cmOpenIdx=null; let hue=0, sat=1, val=1; const svSize={w:240,h:160};
+function hsvToRgb(h, s, v){ const f=(n,k=(n+h/60)%6)=> v - v*s*Math.max(Math.min(k,4-k,1),0); const r=Math.round(f(5)*255), g=Math.round(f(3)*255), b=Math.round(f(1)*255); return {r,g,b}; }
+function rgbToHex(r,g,b){ return '#' + [r,g,b].map(x=> x.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+function hexToRgb(hex){ const m=hex.replace('#',''); const r=parseInt(m.slice(0,2),16), g=parseInt(m.slice(2,4),16), b=parseInt(m.slice(4,6),16); return {r,g,b}; }
+function rgbToHsv(r,g,b){ r/=255; g/=255; b/=255; const v=Math.max(r,g,b), c=v-Math.min(r,g,b); const h=c? (v===r?(g-b)/c%6: v===g? (b-r)/c+2: (r-g)/c+4)*60:0; const s=v?c/v:0; return {h:(h+360)%360, s, v}; }
+function setSVBackground(){ el('sv').style.backgroundColor = `hsl(${hue}, 100%, 50%)`; }
+function updatePreview(){ const {r,g,b}=hsvToRgb(hue, sat, val); el('preview').style.background = rgbToHex(r,g,b); }
+function positionCursor(){ el('svCursor').style.left = (sat*svSize.w) + 'px'; el('svCursor').style.top = ((1-val)*svSize.h) + 'px'; }
+function openColorModal(idx){ cmOpenIdx=idx; const current = selectedColors[idx] || '#FFFFFF'; const {r,g,b} = hexToRgb(current); const hsv = rgbToHsv(r,g,b); hue = Math.round(hsv.h); sat = hsv.s; val = hsv.v; el('hue').value = hue.toString(); setSVBackground(); positionCursor(); updatePreview(); el('colorModalBackdrop').style.display='flex'; }
+function closeColorModal(){ el('colorModalBackdrop').style.display='none'; cmOpenIdx=null; }
+function initColorModal(){
+  const cmBackdrop = el('colorModalBackdrop'); const cmDone=el('modalDone'); const cmCancel=el('modalCancel');
+  cmCancel.addEventListener('click', closeColorModal);
+  cmBackdrop.addEventListener('click', (e)=>{ if(e.target===cmBackdrop) closeColorModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeColorModal(); });
+  el('hue').addEventListener('input', (e)=>{ hue=parseInt(e.target.value,10)||0; setSVBackground(); updatePreview(); });
+  const sv = el('sv');
+  function setFromEvent(ev){ const rect = sv.getBoundingClientRect(); const x = Math.min(Math.max(0, (ev.clientX - rect.left)), rect.width); const y = Math.min(Math.max(0, (ev.clientY - rect.top)),  rect.height); sat = x/rect.width; val = 1 - y/rect.height; positionCursor(); updatePreview(); }
+  let dragging=false; sv.addEventListener('pointerdown',(ev)=>{ dragging=true; sv.setPointerCapture(ev.pointerId); setFromEvent(ev); }); sv.addEventListener('pointermove',(ev)=>{ if(dragging) setFromEvent(ev); }); sv.addEventListener('pointerup',()=>{ dragging=false; }); sv.addEventListener('pointercancel',()=> dragging=false);
+  cmDone.addEventListener('click', ()=>{ if(cmOpenIdx===null) return closeColorModal(); const {r,g,b} = hsvToRgb(hue, sat, val); const hex = rgbToHex(r,g,b); selectedColors[cmOpenIdx]=hex; const sw=document.querySelector(`.swatch[data-idx="${cmOpenIdx}"]`); if(sw){ sw.style.background=hex; sw.classList.remove('empty'); sw.classList.add('hasColor'); } closeColorModal(); });
+}
+function initColors(){ document.querySelectorAll('#colorRow .swatch').forEach(sw=>{ const idx=parseInt(sw.dataset.idx,10); const clear=sw.querySelector('.clear'); sw.addEventListener('click',(ev)=>{ if(ev.target===clear) return; openColorModal(idx); }); clear.addEventListener('click',(ev)=>{ ev.stopPropagation(); selectedColors[idx]=null; sw.style.background='#fff'; sw.classList.remove('hasColor'); sw.classList.add('empty'); }); }); }
+
+// ==================== Generate Flow ==================
+function ensureRegistered(){ const email = localStorage.getItem('vitalini_email'); if(!email){ openGate(); return false; } return true; }
+
+async function generate(){
+  if(!ensureRegistered()){ window.__pendingGenerate=true; return; }
+  updateRLStatus(); if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+  try{
+    el('go').disabled=true; el('status').textContent='Preparing…'; document.getElementById('spinner').style.display='flex';
+    const userBrief = el('brief').value.trim();
+    const modelId = el('model').value; const model = CONFIG_MODELS.find(m=>m.id===modelId) || CONFIG_MODELS[0];
+    const prompt = buildPrompt(model, userBrief, selectedColors);
+    const logos = [...el('logos').files];
+    const compositeBlob = await drawComposite({ size: DEFAULT_SIZE, model, logos });
+    const resp = await callProxy({ prompt, size: DEFAULT_SIZE, compositeBlob });
+
+    // Prefer server-provided records for numbering & URLs
+    if (Array.isArray(resp.images) && resp.images.length){
+      resp.images.forEach(rec=>{ imageStore.set(rec.id, rec); addCard(rec); });
+    } else {
+      // Fallback: render local blobs if server didn’t include URLs
+      (resp.data||[]).forEach((x)=>{ const blob=b64ToBlob(x.b64_json,'image/png'); addCard({blob}); });
+    }
+    el('status').textContent='Done.';
+  } catch(err){ console.error(err); el('status').textContent = 'Error: ' + err.message; }
+  finally { el('go').disabled=false; document.getElementById('spinner').style.display='none'; }
+}
+
+document.getElementById('go').addEventListener('click', generate);
+
+// ==================== Init ============================
+(function init(){ applyText(); populateModels(); updateRLStatus(); initColors(); initColorModal(); bootstrapGallery(); })();
+</script>
+</body>
+</html>
