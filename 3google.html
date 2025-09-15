@@ -1,0 +1,75 @@
+<!doctype html>
+items.forEach(rec=>{
+const d=document.createElement('div'); d.className='mini'; d.dataset.id=rec.id;
+const img=document.createElement('img'); img.src = rec.url; img.alt = `#${rec.index}`;
+const kill=document.createElement('button'); kill.className='kill'; kill.textContent='×'; kill.title='Remove';
+kill.addEventListener('click',()=>{ d.classList.toggle('off'); d.style.opacity = d.classList.contains('off')? .4: 1; });
+const badge=document.createElement('span'); badge.className='badge'; badge.textContent=`#${rec.index}`; badge.style.left='8px'; badge.style.top='8px';
+d.append(img, badge, kill); drawer.strip.append(d);
+});
+}
+
+
+// ==================== Color modal logic =================
+let cmOpenIdx=null; let hue=0, sat=1, val=1; const svSize={w:240,h:160};
+function hsvToRgb(h, s, v){ const f=(n,k=(n+h/60)%6)=> v - v*s*Math.max(Math.min(k,4-k,1),0); const r=Math.round(f(5)*255), g=Math.round(f(3)*255), b=Math.round(f(1)*255); return {r,g,b}; }
+function rgbToHex(r,g,b){ return '#' + [r,g,b].map(x=> x.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+function hexToRgb(hex){ const m=hex.replace('#',''); const r=parseInt(m.slice(0,2),16), g=parseInt(m.slice(2,4),16), b=parseInt(m.slice(4,6),16); return {r,g,b}; }
+function rgbToHsv(r,g,b){ r/=255; g/=255; b/=255; const v=Math.max(r,g,b), c=v-Math.min(r,g,b); const h=c? (v===r?(g-b)/c%6: v===g? (b-r)/c+2: (r-g)/c+4)*60:0; const s=v?c/v:0; return {h:(h+360)%360, s, v}; }
+function setSVBackground(){ el('sv').style.backgroundColor = `hsl(${hue}, 100%, 50%)`; }
+function updatePreview(){ const {r,g,b}=hsvToRgb(hue, sat, val); el('preview').style.background = rgbToHex(r,g,b); }
+function positionCursor(){ el('svCursor').style.left = (sat*svSize.w) + 'px'; el('svCursor').style.top = ((1-val)*svSize.h) + 'px'; }
+function openColorModal(idx){ cmOpenIdx=idx; const current = selectedColors[idx] || '#FFFFFF'; const {r,g,b} = hexToRgb(current); const hsv = rgbToHsv(r,g,b); hue = Math.round(hsv.h); sat = hsv.s; val = hsv.v; el('hue').value = hue.toString(); setSVBackground(); positionCursor(); updatePreview(); el('colorModalBackdrop').style.display='flex'; }
+function closeColorModal(){ el('colorModalBackdrop').style.display='none'; cmOpenIdx=null; }
+function initColorModal(){
+const cmBackdrop = el('colorModalBackdrop'); const cmDone=el('modalDone'); const cmCancel=el('modalCancel');
+cmCancel.addEventListener('click', closeColorModal);
+cmBackdrop.addEventListener('click', (e)=>{ if(e.target===cmBackdrop) closeColorModal(); });
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeColorModal(); });
+el('hue').addEventListener('input', (e)=>{ hue=parseInt(e.target.value,10)||0; setSVBackground(); updatePreview(); });
+const sv = el('sv');
+function setFromEvent(ev){ const rect = sv.getBoundingClientRect(); const x = Math.min(Math.max(0, (ev.clientX - rect.left)), rect.width); const y = Math.min(Math.max(0, (ev.clientY - rect.top)), rect.height); sat = x/rect.width; val = 1 - y/rect.height; positionCursor(); updatePreview(); }
+let dragging=false; sv.addEventListener('pointerdown',(ev)=>{ dragging=true; sv.setPointerCapture(ev.pointerId); setFromEvent(ev); }); sv.addEventListener('pointermove',(ev)=>{ if(dragging) setFromEvent(ev); }); sv.addEventListener('pointerup',()=>{ dragging=false; }); sv.addEventListener('pointercancel',()=> dragging=false);
+cmDone.addEventListener('click', ()=>{ if(cmOpenIdx===null) return closeColorModal(); const {r,g,b} = hsvToRgb(hue, sat, val); const hex = rgbToHex(r,g,b); selectedColors[cmOpenIdx]=hex; const sw=document.querySelector(`.swatch[data-idx="${cmOpenIdx}"]`); if(sw){ sw.style.background=hex; sw.classList.remove('empty'); sw.classList.add('hasColor'); } closeColorModal(); });
+}
+function initColors(){ document.querySelectorAll('#colorRow .swatch').forEach(sw=>{ const idx=parseInt(sw.dataset.idx,10); const clear=sw.querySelector('.clear'); sw.addEventListener('click',(ev)=>{ if(ev.target===clear) return; openColorModal(idx); }); clear.addEventListener('click',(ev)=>{ ev.stopPropagation(); selectedColors[idx]=null; sw.style.background='#fff'; sw.classList.remove('hasColor'); sw.classList.add('empty'); }); }); }
+
+
+// ==================== Generate Flow ==================
+function ensureRegistered(){ const email = localStorage.getItem('vitalini_email'); if(!email){ openGate(); return false; } return true; }
+
+
+async function generate(){
+if(!ensureRegistered()){ window.__pendingGenerate=true; return; }
+updateRLStatus(); if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+try{
+el('go').disabled=true; el('status').textContent='Preparing…'; document.getElementById('spinner').style.display='flex';
+const userBrief = el('brief').value.trim();
+const modelId = el('model').value; const model = CONFIG_MODELS.find(m=>m.id===modelId) || CONFIG_MODELS[0];
+const prompt = buildPrompt(model, userBrief, selectedColors);
+const logos = [...el('logos').files];
+const compositeBlob = await drawComposite({ size: DEFAULT_SIZE, model, logos });
+const resp = await callProxy({ prompt, size: DEFAULT_SIZE, compositeBlob });
+
+
+// Prefer server-provided records for numbering & URLs
+if (Array.isArray(resp.images) && resp.images.length){
+resp.images.forEach(rec=>{ imageStore.set(rec.id, rec); addCard(rec); });
+} else {
+// Fallback: render local blobs if server didn’t include URLs
+(resp.data||[]).forEach((x)=>{ const blob=b64ToBlob(x.b64_json,'image/png'); addCard({blob}); });
+}
+el('status').textContent='Done.';
+} catch(err){ console.error(err); el('status').textContent = 'Error: ' + err.message; }
+finally { el('go').disabled=false; document.getElementById('spinner').style.display='none'; }
+}
+
+
+document.getElementById('go').addEventListener('click', generate);
+
+
+// ==================== Init ============================
+(function init(){ applyText(); populateModels(); updateRLStatus(); initColors(); initColorModal(); bootstrapGallery(); })();
+</script>
+</body>
+</html>
