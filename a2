@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalini Designer</title>
+  <style>
+    :root{ --bg:#f7f8fb; --card:#ffffff; --text:#0f172a; --muted:#475467; --accent:#1d4ed8; --border:#d0d5dd; --danger:#e11d48; --ok:#059669 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1060px;margin:0 auto;padding:28px}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:-.01em;font-size:clamp(22px,3.6vw,30px)}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    label{display:block;margin:10px 0 6px;color:#344054;font-size:14px;font-weight:600}
+    input[type="file"], textarea, select, input[type="email"]{width:100%;border:1px solid var(--border);background:#ffffff;color:#0f172a;padding:12px;border-radius:12px}
+    textarea{min-height:120px;resize:vertical}
+    .btn,.secondary{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border-radius:9999px;font-weight:800;line-height:1;border:1px solid transparent;cursor:pointer;text-decoration:none;text-align:center}
+    .btn{background:var(--accent);border:1px solid var(--accent);color:#fff}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .secondary{background:#e5e7eb;border:1px solid var(--border);color:#111827}
+    .secondary:hover{background:#e2e8f0}
+    .status{margin-left:10px;color:#475467;font-size:14px}
+    .rl{margin-top:8px;font-size:13px;color:#475467}
+    .rl.ok{color:var(--ok)}
+    .rl.bad{color:var(--danger)}
+
+    /* Spinner */
+    .spinner{display:none;gap:10px;align-items:center;margin-top:10px}
+    .spinner .wheel{width:18px;height:18px;border:3px solid #c7d2fe;border-top-color:var(--accent);border-radius:9999px;animation:spin 0.9s linear infinite}
+    .spinner .msg{font-size:13px;color:#667085}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .thumb{position:relative;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .thumb img{width:100%;height:auto;border-radius:10px;display:block}
+    .savefab{position:absolute;right:12px;bottom:12px;background:#ffffffcc;border:1px solid var(--border);padding:8px 12px;border-radius:9999px;font-weight:700;cursor:pointer;backdrop-filter:saturate(140%) blur(2px)}
+
+    /* Color selector row */
+    .color-row{display:flex;gap:12px;align-items:center;justify-content:flex-start;margin-top:6px}
+    .swatch{position:relative;width:44px;height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .swatch .clear{display:none;position:absolute;top:-8px;right:-8px;background:#fff;border:1px solid var(--border);border-radius:9999px;width:20px;height:20px;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
+    .swatch.hasColor .clear{display:block}
+
+    .badge{position:absolute;left:12px;top:12px;background:#ffffffcc;border:1px solid var(--border);padding:2px 8px;border-radius:9999px;font-weight:700;font-size:12px;backdrop-filter:saturate(140%) blur(2px)}
+
+    /* Generic modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:520px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,.18);position:relative}
+    .modal h3{margin:0 0 12px;font-size:18px}
+    .modal-footer{margin-top:12px;display:flex;gap:8px;justify-content:flex-end}
+
+    /* SV/Hue picker from your current file */
+    .sv{position:relative;width:240px;height:160px;border-radius:10px;border:1px solid var(--border);cursor:crosshair;background:red;background-image:linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)),linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0));}
+    .sv .cursor{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #0005;transform:translate(-50%,-50%)}
+    .hue{width:240px;height:12px;border-radius:8px;appearance:none;-webkit-appearance:none;background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);outline:none;border:1px solid var(--border);--thumb-color:#fff; --thumb-border:#111;}
+    .hue::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--thumb-color);border:2px solid var(--thumb-border);box-shadow:0 0 0 2px #0002;margin-top:-4px}
+    .hue::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--thumb-color);border:2px solid var(--thumb-border);box-shadow:0 0 0 2px #0002}
+    .preview{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
+
+    /* Contact thumbnails row */
+    .thumb-strip{display:flex;gap:10px;overflow-x:auto;padding:6px;border:1px solid var(--border);border-radius:12px}
+    .mini{position:relative;flex:0 0 auto;width:110px;border:1px solid var(--border);border-radius:10px;padding:6px;background:#fff}
+    .mini img{width:100%;display:block;border-radius:8px}
+    .mini .x{position:absolute;top:4px;right:6px;border:none;background:#fff;border:1px solid var(--border);border-radius:999px;width:20px;height:20px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <h1 id="text-title">Vitalini Design Generator — Gemini</h1>
+      <p id="text-subtitle" class="lead">Tell us what you want and pick a product model. This version uses <b>Google Gemini 2.5 Flash Image</b> via our secure proxy.</p>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <section class="card">
+        <label for="model" id="text-model-label">Select model</label>
+        <select id="model"></select>
+
+        <label for="brief" id="text-brief-label">Your Design</label>
+        <textarea id="brief" placeholder="Describe the design… (logos get overlaid as hints)"></textarea>
+
+        <label id="text-colors-label" style="margin-top:10px">Primary colours (optional)</label>
+        <div id="colorRow" class="color-row">
+          <div class="swatch empty" data-idx="0" title="Pick color 1"><button class="clear" type="button" aria-label="Clear">×</button></div>
+          <div class="swatch empty" data-idx="1" title="Pick color 2"><button class="clear" type="button" aria-label="Clear">×</button></div>
+          <div class="swatch empty" data-idx="2" title="Pick color 3"><button class="clear" type="button" aria-label="Clear">×</button></div>
+        </div>
+
+        <label for="logos" style="margin-top:10px" id="text-logo-label">Upload logo (optional)</label>
+        <input id="logos" type="file" accept="image/*" multiple />
+        <div class="rl" id="text-logo-note"></div>
+
+        <div class="rl" id="rlStatus">Checking rate limit…</div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="go" class="btn"><span id="text-generate">Generate</span></button>
+          <button id="contactBtn" class="secondary">Contact Design Team</button>
+          <span class="status" id="status"></span>
+        </div>
+
+        <div id="spinner" class="spinner" aria-hidden="true">
+          <div class="wheel"></div>
+          <div class="msg" id="text-spinner-msg">Generating…</div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <h3 style="margin:4px 0 10px;font-size:18px" id="text-results-title">Results</h3>
+        <div id="gallery"></div>
+        <div class="rl" id="emptyState">No images yet. Click <b>Generate</b> to start.</div>
+      </section>
+    </div>
+
+    <canvas id="work" width="1024" height="1024" style="display:none"></canvas>
+  </div>
+
+  <!-- Email Gate Modal -->
+  <div id="emailModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>Continue with your email</h3>
+      <p class="lead">We'll save your designs to this address so you don’t lose them.</p>
+      <label>Your email</label>
+      <input id="gateEmail" type="email" placeholder="you@example.com" />
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <input id="gateConsent" type="checkbox" />
+        <span>I agree to the Privacy Policy</span>
+      </label>
+      <div class="modal-footer">
+        <button id="gateCancel" class="secondary" type="button">Cancel</button>
+        <button id="gateContinue" class="btn" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Modal -->
+  <div id="contactModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3>Send to Vitalini Design</h3>
+      <label>Your email</label>
+      <input id="contactEmail" type="email" placeholder="you@example.com" />
+      <label style="margin-top:8px">Describe what you need</label>
+      <textarea id="contactDesc" placeholder="Tell our designers what to refine…"></textarea>
+      <label style="margin-top:8px">Select images to include</label>
+      <div id="contactStrip" class="thumb-strip"></div>
+      <div class="modal-footer">
+        <button id="contactCancel" class="secondary" type="button">Cancel</button>
+        <button id="contactSend" class="btn" type="button">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color Picker Modal (unchanged) -->
+  <div id="colorModalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div id="colorModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="colorModalTitle">
+      <h3 id="colorModalTitle">Pick a colour</h3>
+      <div class="picker">
+        <div id="sv" class="sv"><div id="svCursor" class="cursor"></div></div>
+        <input id="hue" class="hue" type="range" min="0" max="359" value="0" />
+        <div id="preview" class="preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="modalCancel" type="button" class="secondary">Cancel</button>
+        <button id="modalDone" type="button" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===== CONFIG =====
+const API_BASE = 'https://YOUR-WORKER.DOMAIN'; // e.g., https://google.faster-551.workers.dev
+const PROXY_URL = API_BASE + '/api/generate-gemini';
+
+// ===== Editable texts =====
+const CONFIG_TEXT = {
+  title: 'Vitalini Designer',
+  subtitle: 'Select a model, describe a design. We save your results to your email.',
+  modelLabel: 'Select model',
+  briefLabel: 'Your Design',
+  colorsLabel: 'Design Colors (optional)',
+  logoLabel: 'Upload Logo (optional)',
+  generate: 'Generate',
+  resultsTitle: 'Results',
+};
+
+const el=(id)=>document.getElementById(id);
+function applyText(){
+  el('text-title').innerHTML = CONFIG_TEXT.title;
+  el('text-subtitle').innerHTML = CONFIG_TEXT.subtitle;
+  el('text-model-label').textContent = CONFIG_TEXT.modelLabel;
+  el('text-brief-label').textContent = CONFIG_TEXT.briefLabel;
+  el('text-colors-label').textContent = CONFIG_TEXT.colorsLabel;
+  el('text-logo-label').textContent = CONFIG_TEXT.logoLabel;
+  el('text-generate').textContent = CONFIG_TEXT.generate;
+  el('text-results-title').textContent = CONFIG_TEXT.resultsTitle;
+}
+
+// ===== Models (same as your file, trimmed for brevity) =====
+const CONFIG_MODELS = [
+  { id: 'VP9655F', label: 'VP9655 Ski Jacket Front', preprompt: 'Jacket studio product photo…', baseSrc: './assets/models/VP9655 F.png' },
+  { id: 'VP38F',  label: 'VP38 Race Suit Front',      preprompt: 'Studio product render…',     baseSrc: './assets/models/VP38_base.png' }
+];
+function populateModels(){
+  const sel=el('model'); sel.innerHTML='';
+  for(const m of CONFIG_MODELS){ const o=document.createElement('option'); o.value=m.id; o.textContent=m.label; sel.appendChild(o); }
+}
+
+// ===== User & RL =====
+const RL_LIMIT = 500, RL_WINDOW_MS = 24*60*60*1000, RL_KEY='vitalini_rl_v1';
+const USER_KEY='vitalini_uid_v1', EMAIL_KEY='vitalini_email_v1';
+function uuid(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=crypto.getRandomValues(new Uint8Array(1))[0]&15;const v=c==='x'?r:(r&0x3|0x8);return v.toString(16);}); }
+function getUserId(){ let id=localStorage.getItem(USER_KEY); if(!id){ id=uuid(); localStorage.setItem(USER_KEY,id);} return id; }
+function getEmail(){ return localStorage.getItem(EMAIL_KEY)||''; }
+function setEmail(v){ localStorage.setItem(EMAIL_KEY, v); }
+function loadRL(){ try{ const raw=localStorage.getItem(RL_KEY); if(raw) return JSON.parse(raw);}catch{} const now=Date.now(); const st={used:0,resetAt:now+RL_WINDOW_MS}; localStorage.setItem(RL_KEY, JSON.stringify(st)); return st; }
+function saveRL(st){ localStorage.setItem(RL_KEY, JSON.stringify(st)); }
+function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
+function updateRLStatus(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st);} const left=Math.max(0, RL_LIMIT-st.used); const e=el('rlStatus'); e.textContent = left>0?`You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).`:`Daily limit reached. Resets ${humanTime(st.resetAt)}.`; e.className='rl '+(left>0?'ok':'bad'); el('go').disabled=left<=0; }
+function spendCredit(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; } if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
+function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+
+// ===== Email Gate =====
+function showModal(backdropId, on){ const b=el(backdropId); b.style.display = on? 'flex':'none'; }
+async function ensureEmail(){
+  return new Promise((resolve)=>{
+    const stored=getEmail();
+    if(stored){ return resolve(stored); }
+    showModal('emailModal', true);
+    el('gateEmail').value=''; el('gateConsent').checked=false;
+    const close=()=>{ showModal('emailModal', false); };
+    el('gateCancel').onclick = ()=>{ close(); resolve(null); };
+    el('gateContinue').onclick = async ()=>{
+      const email = el('gateEmail').value.trim(); const ok = /.+@.+\..+/.test(email) && el('gateConsent').checked;
+      if(!ok) { alert('Please enter a valid email and accept the privacy policy.'); return; }
+      setEmail(email);
+      // register with backend
+      try{ await fetch(API_BASE+'/api/register',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ user_id:getUserId(), email, privacy_consent:true })}); }catch{}
+      close(); resolve(email);
+    };
+  });
+}
+
+// ===== Gallery state =====
+let IMAGES = []; // {seq,url,createdAt,modelId}
+function renderGallery(){
+  const g=el('gallery'); g.innerHTML='';
+  if(!IMAGES.length){ el('emptyState').style.display='block'; return; }
+  el('emptyState').style.display='none';
+  for(const it of [...IMAGES].sort((a,b)=>b.seq-a.seq)){
+    const card=document.createElement('div'); card.className='thumb';
+    const badge=document.createElement('span'); badge.className='badge'; badge.textContent = `#${it.seq}`;
+    const img=document.createElement('img'); img.loading='lazy'; img.src=it.url; img.alt='Generated product';
+    const btn=document.createElement('button'); btn.className='savefab'; btn.type='button'; btn.textContent='Save';
+    btn.onclick=()=>{ const a=document.createElement('a'); a.href=it.url; a.download=`vitalini-${it.seq}.png`; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); };
+    card.append(badge,img,btn); g.append(card);
+  }
+}
+
+async function hydrateFromServer(){
+  try{
+    const r = await fetch(API_BASE+`/api/images?user_id=${encodeURIComponent(getUserId())}&limit=100`);
+    const j = await r.json();
+    if(j && j.images){ IMAGES = j.images; renderGallery(); }
+  }catch(e){ console.warn('images fetch failed', e); }
+}
+
+// ===== Color Picker (unchanged math, trimmed) =====
+const selectedColors=[null,null,null];
+function buildColorsLine(colors){ const present=colors.map((c,i)=>c?`${i+1}: ${c.toUpperCase()}`:null).filter(Boolean); return present.length?`Primary colours: ${present.join('  ')}`:''; }
+function hsvToRgb(h,s,v){ const f=(n,k=(n+h/60)%6)=>v-v*s*Math.max(Math.min(k,4-k,1),0); const r=Math.round(f(5)*255), g=Math.round(f(3)*255), b=Math.round(f(1)*255); return {r,g,b}; }
+function rgbToHex(r,g,b){ return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+function hexToRgb(hex){ const m=hex.replace('#',''); return { r:parseInt(m.slice(0,2),16), g:parseInt(m.slice(2,4),16), b:parseInt(m.slice(4,6),16) } }
+function rgbToHsv(r,g,b){ r/=255; g/=255; b/=255; const v=Math.max(r,g,b), c=v-Math.min(r,g,b); const h=c?(v===r?(g-b)/c%6:v===g?(b-r)/c+2:(r-g)/c+4)*60:0; const s=v?c/v:0; return {h:(h+360)%360,s,v}; }
+let hue=0,sat=1,val=1; const svSize={w:240,h:160};
+function setSVBackground(){ el('sv').style.backgroundColor=`hsl(${hue},100%,50%)`; }
+function updatePreview(){ const {r,g,b}=hsvToRgb(hue,sat,val); el('preview').style.background=rgbToHex(r,g,b); }
+function positionCursor(){ const pad=4; const x=sat*svSize.w, y=(1-val)*svSize.h; const xC=Math.min(Math.max(x,pad),svSize.w-pad); const yC=Math.min(Math.max(y,pad),svSize.h-pad); el('svCursor').style.left=xC+'px'; el('svCursor').style.top=yC+'px'; }
+function updateHueThumb(){ const {r,g,b}=hsvToRgb(hue,1,1); const hex=rgbToHex(r,g,b); const thumb=el('hue'); thumb.style.setProperty('--thumb-color',hex); const L=0.2126*(r/255)+0.7152*(g/255)+0.0722*(b/255); thumb.style.setProperty('--thumb-border', L>0.55?'#111':'#fff'); }
+function openColorModal(idx){ window._openIdx=idx; const current=selectedColors[idx]; if(current){ const {r,g,b}=hexToRgb(current); const hsv=rgbToHsv(r,g,b); hue=Math.round(hsv.h); sat=hsv.s; val=hsv.v; } else { hue=parseInt(el('hue').value,10)||hue; sat=1; val=1; } el('hue').value=String(hue); setSVBackground(); positionCursor(); updatePreview(); updateHueThumb(); showModal('colorModalBackdrop', true); }
+function closeColorModal(){ showModal('colorModalBackdrop', false); window._openIdx=null; }
+function initColorModal(){
+  el('modalCancel').onclick=closeColorModal;
+  document.getElementById('colorModalBackdrop').addEventListener('click',(e)=>{ if(e.target.id==='colorModalBackdrop') closeColorModal(); });
+  el('hue').addEventListener('input',(e)=>{ hue=parseInt(e.target.value,10)||0; setSVBackground(); updatePreview(); updateHueThumb(); });
+  const sv=el('sv');
+  function setFromEvent(ev){ const rect=sv.getBoundingClientRect(); const x=Math.min(Math.max(0,(ev.clientX-rect.left)),rect.width); const y=Math.min(Math.max(0,(ev.clientY-rect.top)),rect.height); sat=x/rect.width; val=1-y/rect.height; positionCursor(); updatePreview(); }
+  let dragging=false; sv.addEventListener('pointerdown',(ev)=>{ dragging=true; sv.setPointerCapture(ev.pointerId); setFromEvent(ev); }); sv.addEventListener('pointermove',(ev)=>{ if(dragging) setFromEvent(ev); }); sv.addEventListener('pointerup',()=>dragging=false); sv.addEventListener('pointercancel',()=>dragging=false);
+  el('modalDone').onclick=()=>{ const idx=window._openIdx; if(idx==null) return closeColorModal(); const {r,g,b}=hsvToRgb(hue,sat,val); const hex=rgbToHex(r,g,b); selectedColors[idx]=hex; const sw=document.querySelector(`.swatch[data-idx="${idx}"]`); if(sw){ sw.style.background=hex; sw.classList.add('hasColor'); } closeColorModal(); };
+}
+function initColors(){ document.querySelectorAll('#colorRow .swatch').forEach((sw)=>{ const idx=parseInt(sw.dataset.idx,10); const clear=sw.querySelector('.clear'); sw.addEventListener('click',(ev)=>{ if(ev.target===clear) return; openColorModal(idx); }); clear.addEventListener('click',(ev)=>{ ev.stopPropagation(); selectedColors[idx]=null; sw.style.background='#fff'; sw.classList.remove('hasColor'); }); }); }
+
+// ===== Canvas composite (unchanged) =====
+const work=el('work'), ctx=work.getContext('2d');
+const DEFAULT_SIZE='1024x1536';
+function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
+async function urlToBitmap(url){ const res=await fetch(url,{mode:'cors'}); const blob=await res.blob(); return await createImageBitmap(blob); }
+async function fileToBitmap(file){ return createImageBitmap(file); }
+const BLANK_SVG = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#ffffff"/></svg>`;
+async function drawComposite({size, model, logos}){ const {w,h}=parseSize(size); work.width=w; work.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); let baseBmp=null; try{ if(model.baseSrc) baseBmp=await urlToBitmap(model.baseSrc);}catch(e){}
+  if(!baseBmp){ const blob=new Blob([BLANK_SVG],{type:'image/svg+xml'}); const url=URL.createObjectURL(blob); baseBmp=await createImageBitmap(await fetch(url).then(r=>r.blob())); URL.revokeObjectURL(url); }
+  const sc=Math.min(w/baseBmp.width,h/baseBmp.height); const bw=baseBmp.width*sc, bh=baseBmp.height*sc; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(baseBmp,bx,by,bw,bh);
+  const spots=[{x:0.33,y:0.28,w:0.14,h:0.08},{x:0.53,y:0.28,w:0.14,h:0.08},{x:0.76,y:0.45,w:0.12,h:0.08},{x:0.12,y:0.45,w:0.12,h:0.08},{x:0.35,y:0.62,w:0.30,h:0.15}];
+  const files=logos||[]; for(let i=0;i<files.length && i<spots.length;i++){ const bmp=await fileToBitmap(files[i]); const s=spots[i]; const boxW=Math.floor(w*s.w), boxH=Math.floor(h*s.h); const dx=Math.floor(w*s.x), dy=Math.floor(h*s.y); const sT=Math.min(boxW/bmp.width, boxH/bmp.height); const dw=Math.floor(bmp.width*sT), dh=Math.floor(bmp.height*sT); const ox=dx+Math.floor((boxW-dw)/2), oy=dy+Math.floor((boxH-dh)/2); ctx.save(); ctx.globalAlpha=.95; ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp, ox, oy, dw, dh); ctx.restore(); }
+  return new Promise(resolve=> work.toBlob(resolve,'image/png',0.98)); }
+
+// ===== Prompt builder =====
+function buildPrompt(model, userText, colors){ const base='High‑fidelity studio product image…'; const colorLine=buildColorsLine(colors); return [model.preprompt, userText, colorLine, base].filter(Boolean).join('\n\n'); }
+
+function b64ToBlob(b64, mime='image/png'){ const bin=atob(b64); const len=bin.length; const bytes=new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes],{type:mime}); }
+
+async function callProxy({prompt,size,compositeBlob,modelId}){
+  const form=new FormData(); form.append('prompt',prompt); form.append('size',size); form.append('user_id',getUserId()); form.append('model_id',modelId); form.append('image', new File([compositeBlob],'base.png',{type:'image/png'}));
+  let res; try{ res=await fetch(PROXY_URL,{method:'POST',body:form}); }catch(e){ refundCredit(); throw new Error('Network error contacting proxy'); }
+  if(res.status===429){ refundCredit(); const info=await res.json().catch(()=>({})); throw new Error(info.message||'Rate limit exceeded'); }
+  if(!res.ok){ refundCredit(); const text=await res.text().catch(()=> ''); throw new Error(`Proxy error ${res.status}: ${text}`); }
+  return await res.json(); // {data:[{b64_json,url,seq}]}
+}
+
+// ===== Contact modal population =====
+function openContact(){ el('contactEmail').value=getEmail()||''; const strip=el('contactStrip'); strip.innerHTML='';
+  for(const it of [...IMAGES].sort((a,b)=>b.seq-a.seq)){
+    const box=document.createElement('div'); box.className='mini'; box.dataset.seq=it.seq; box.dataset.selected='1';
+    const badge=document.createElement('div'); badge.className='badge'; badge.textContent='#'+it.seq; box.appendChild(badge);
+    const img=document.createElement('img'); img.src=it.url; img.alt=''; box.appendChild(img);
+    const x=document.createElement('button'); x.className='x'; x.textContent='×'; x.onclick=()=>{ box.dataset.selected = box.dataset.selected==='1'?'0':'1'; box.style.opacity = box.dataset.selected==='1'?'1':'0.45'; }; box.appendChild(x);
+    strip.appendChild(box);
+  }
+  showModal('contactModal', true);
+}
+
+async function sendContact(){
+  const email=el('contactEmail').value.trim(); if(!/.+@.+\..+/.test(email)){ alert('Enter a valid email'); return; }
+  const description=el('contactDesc').value.trim();
+  const seqs=[...document.querySelectorAll('#contactStrip .mini')].filter(n=>n.dataset.selected==='1').map(n=>({seq:parseInt(n.dataset.seq,10)}));
+  if(!seqs.length){ alert('Select at least one image'); return; }
+  const payload={ user_id:getUserId(), email, description, images: seqs };
+  const r=await fetch(API_BASE+'/api/contact',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok){ alert('Could not send. Try again.'); return; }
+  alert('Sent! Our team will reply via email.'); showModal('contactModal', false);
+}
+
+// ===== Generate flow =====
+function showSpinner(on){ el('spinner').style.display=on?'flex':'none'; }
+async function generate(){ updateRLStatus(); if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+  const email = await ensureEmail(); if(!email){ refundCredit(); return; }
+  try{
+    el('go').disabled=true; el('status').textContent='Preparing…'; showSpinner(true);
+    const userBrief=el('brief').value.trim(); const modelId=el('model').value; const model=CONFIG_MODELS.find(m=>m.id===modelId)||CONFIG_MODELS[0];
+    const prompt=buildPrompt(model,userBrief,selectedColors);
+    const logos=[...el('logos').files];
+    const compositeBlob=await drawComposite({ size: DEFAULT_SIZE, model, logos });
+    const data=await callProxy({ prompt, size: DEFAULT_SIZE, compositeBlob, modelId });
+    if(data && data.data){ for(const it of data.data){ if(it.url && it.seq!=null){ IMAGES.push({ seq:it.seq, url:it.url, createdAt:Date.now(), modelId }); } }
+      renderGallery(); }
+    el('status').textContent='Done.';
+  }catch(err){ console.error(err); el('status').textContent = 'Error: '+err.message; }
+  finally { el('go').disabled=false; showSpinner(false); }
+}
+
+// ===== Wire up =====
+applyText(); populateModels(); updateRLStatus(); initColors(); initColorModal(); hydrateFromServer();
+el('go').addEventListener('click', generate);
+el('contactBtn').addEventListener('click', openContact);
+el('contactCancel').addEventListener('click', ()=> showModal('contactModal', false));
+el('contactSend').addEventListener('click', sendContact);
+</script>
+</body>
+</html>
