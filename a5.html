@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vitalini Designer</title>
+  <style>
+    :root{ --bg:#f7f8fb; --card:#ffffff; --text:#0f172a; --muted:#475467; --accent:#1d4ed8; --border:#d0d5dd; --danger:#e11d48; --ok:#059669 }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial,sans-serif}
+    .wrap{max-width:1060px;margin:0 auto;padding:28px}
+    @media (max-width:750px){.wrap{padding:12px}}
+    h1{margin:0 0 10px;font-weight:800;letter-spacing:-.01em;font-size:clamp(22px,3.6vw,30px)}
+    p.lead{margin:0 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px}
+    label{display:block;margin:10px 0 6px;color:#344054;font-size:14px;font-weight:600}
+    /* inputs: style email like the others */
+    input[type="file"], input[type="email"], input[type="text"], textarea, select{width:100%;border:1px solid var(--border);background:#ffffff;color:#0f172a;padding:12px;border-radius:12px}
+    textarea{min-height:120px;resize:vertical}
+    .btn,.secondary{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border-radius:9999px;font-weight:800;line-height:1;border:1px solid transparent;cursor:pointer;text-decoration:none;text-align:center}
+    .secondary{background:#e5e7eb;border:1px solid var(--border);color:#111827}
+    .secondary:hover{background:#e2e8f0}
+    .btn{background:var(--accent);border:1px solid var(--accent);color:#fff;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .status{margin-left:10px;color:#475467;font-size:14px}
+    .rl{margin-top:8px;font-size:13px;color:#475467}
+    .rl.ok{color:var(--ok)}
+    .rl.bad{color:var(--danger)}
+
+    /* Spinner */
+    .spinner{display:none;gap:10px;align-items:center;margin-top:10px}
+    .spinner .wheel{width:18px;height:18px;border:3px solid #c7d2fe;border-top-color:var(--accent);border-radius:9999px;animation:spin 0.9s linear infinite}
+    .spinner .msg{font-size:13px;color:#667085}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .thumb{position:relative;background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px}
+    .thumb img{width:100%;height:auto;border-radius:10px;display:block}
+    .savefab{position:absolute;right:12px;bottom:12px;background:#ffffffcc;border:1px solid var(--border);padding:8px 12px;border-radius:9999px;font-weight:700;cursor:pointer;backdrop-filter:saturate(140%) blur(2px)}
+    .savefab:active{transform:scale(0.98)}
+
+    /* Color selector row (boxes left/center/right) */
+    .color-row{display:flex;gap:12px;align-items:center;justify-content:flex-start;margin-top:6px}
+    .swatch{position:relative;width:44px;height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .swatch.empty{background:#fff}
+    .swatch .clear{display:none;position:absolute;top:-8px;right:-8px;background:#fff;border:1px solid var(--border);border-radius:9999px;width:20px;height:20px;font-size:12px;line-height:18px;text-align:center;cursor:pointer}
+    .swatch.hasColor .clear{display:block}
+
+    /* Image badge (number or Example) */
+    .badge{position:absolute;left:12px;top:12px;background:#ffffffcc;border:1px solid var(--border);padding:2px 8px;border-radius:9999px;font-weight:700;font-size:12px;backdrop-filter:saturate(140%) blur(2px)}
+
+    /* Shared backdrop */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.18);position:relative}
+    .modal h3{margin:0 0 12px;font-size:16px}
+    .modal-footer{margin-top:12px;display:flex;gap:8px;justify-content:flex-end}
+    /* Sizes per-modal to keep color picker size intact */
+    .modal--color{max-width:340px;width:92%}
+    .modal--email{max-width:420px;width:92%}
+
+    /* Custom colour picker (kept identical) */
+    .picker{display:flex;flex-direction:column;gap:10px;align-items:center}
+    .sv{position:relative;width:240px;height:160px;border-radius:10px;border:1px solid var(--border);cursor:crosshair;background:red;
+      background-image:
+        linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0)),
+        linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0));}
+    .sv .cursor{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #0005;transform:translate(-50%,-50%)}
+    .hue{width:240px;height:12px;border-radius:8px;appearance:none;-webkit-appearance:none;background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);outline:none;border:1px solid var(--border);
+      --thumb-color:#fff; --thumb-border:#111;}
+    .hue::-webkit-slider-runnable-track{background:transparent;border:none;height:12px;border-radius:8px}
+    .hue::-moz-range-track{background:transparent;border:none;height:12px;border-radius:8px}
+    .hue::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--thumb-color);border:2px solid var(--thumb-border);box-shadow:0 0 0 2px #0002;margin-top:-4px}
+    .hue::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--thumb-color);border:2px solid var(--thumb-border);box-shadow:0 0 0 2px #0002}
+    .preview{width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
+
+    /* Contact slide-over (separate from modal so it doesn't affect color-picker) */
+    .slideover-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;z-index:60}
+    .slideover{position:fixed;top:0;right:0;height:100%;width:min(440px,92vw);background:#fff;border-left:1px solid var(--border);box-shadow:-8px 0 30px rgba(0,0,0,.12);transform:translateX(100%);transition:transform .25s ease;z-index:61;display:flex;flex-direction:column}
+    .slideover.open{transform:translateX(0)}
+    .slideover header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+    .slideover main{padding:14px 16px;overflow:auto}
+    .slideover footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+    /* Horizontal image picker in contact panel */
+    .hstrip{display:flex;gap:10px;overflow:auto;padding:6px 0}
+    .mini{position:relative;flex:0 0 auto;width:120px;border:1px solid var(--border);border-radius:10px;padding:6px;background:#fff}
+    .mini img{width:100%;border-radius:8px;display:block}
+    .mini .num{position:absolute;left:8px;top:8px;font-weight:700;font-size:12px;background:#ffffffcc;border:1px solid var(--border);border-radius:9999px;padding:2px 6px}
+    .mini .x{position:absolute;right:8px;top:8px;width:22px;height:22px;border-radius:9999px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:800;line-height:1;font-size:14px}
+    .mini.off{opacity:.45}
+
+    /* Logo file list with remove X (centered) */
+    .file-list{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px}
+    .file-item{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:6px 10px;background:#fff}
+    .file-name{font-size:13px;color:#111827}
+    .file-remove{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-weight:800;border-radius:9999px;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
+
+    /* Helper text */
+    .helptext{display:block;margin-top:4px;color:#667085;font-size:12px}
+
+    /* Toast */
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;display:none;z-index:80}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header style="margin-bottom:18px">
+      <h1 id="text-title">Vitalini Design Generator — Gemini</h1>
+      <p id="text-subtitle" class="lead">Tell us what you want and pick a product model. This version uses <b>Google Gemini 2.5 Flash Image</b> via our secure proxy. Results usually take <b>1–2 minutes</b>.</p>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <section class="card">
+        <!-- NEW: Type selector above model -->
+        <label for="category" id="text-category-label">Select type</label>
+        <select id="category"></select>
+
+        <!-- Model selector BELOW type -->
+        <label for="model" id="text-model-label">Select model</label>
+        <select id="model"></select>
+
+        <label for="brief" id="text-brief-label">Your Design</label>
+        <textarea id="brief" placeholder="Describe the design… (logos get overlaid as hints)"></textarea>
+
+        <!-- Primary colours (optional) -->
+        <label id="text-colors-label" style="margin-top:10px">Primary colours (optional)</label>
+        <div id="colorRow" class="color-row">
+          <div class="swatch empty" data-idx="0" title="Pick color 1">
+            <button class="clear" type="button" aria-label="Clear color">×</button>
+          </div>
+          <div class="swatch empty" data-idx="1" title="Pick color 2">
+            <button class="clear" type="button" aria-label="Clear color">×</button>
+          </div>
+          <div class="swatch empty" data-idx="2" title="Pick color 3">
+            <button class="clear" type="button" aria-label="Clear color">×</button>
+          </div>
+        </div>
+
+        <label for="logos" style="margin-top:10px" id="text-logo-label">Upload logo (optional)</label>
+        <input id="logos" type="file" accept="image/*" multiple />
+        <div id="logoList" class="file-list" aria-live="polite"></div>
+        <div class="rl" id="text-logo-note"></div>
+
+        <div class="rl" id="rlStatus">Checking rate limit…</div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button id="go" class="btn"><span id="text-generate">Generate</span></button>
+          <span class="status" id="status"></span>
+        </div>
+
+        <div id="spinner" class="spinner" aria-hidden="true">
+          <div class="wheel"></div>
+          <div class="msg" id="text-spinner-msg">Generating… This usually takes 1–2 minutes.</div>
+        </div>
+
+        <!-- Contact CTA under Generate -->
+        <div style="margin-top:16px">
+          <button id="contactBtn" class="secondary"><span id="text-contact-btn">Contact Design Team</span></button>
+          <small id="text-contact-help" class="helptext">Send your brief and selected images to our designers.</small>
+        </div>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <h3 style="margin:4px 0 10px;font-size:18px" id="text-results-title">Results</h3>
+        <div id="exampleCard" class="thumb" style="display:none">
+          <span class="badge" id="exampleBadge">Example</span>
+          <img id="exampleImg" alt="Example design" loading="lazy" />
+        </div>
+        <div id="gallery"></div>
+        <div class="rl" id="emptyState">No images yet. Click <b>Generate</b> to start.</div>
+      </section>
+    </div>
+
+    <canvas id="work" width="1024" height="1024" style="display:none"></canvas>
+  </div>
+
+  <!-- ====== Color picker modal (size preserved: modal--color) ====== -->
+  <div id="colorModalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div id="colorModal" class="modal modal--color" role="dialog" aria-modal="true" aria-labelledby="colorModalTitle">
+      <h3 id="colorModalTitle">Pick a colour</h3>
+      <div class="picker">
+        <div id="sv" class="sv"><div id="svCursor" class="cursor"></div></div>
+        <input id="hue" class="hue" type="range" min="0" max="359" value="0" />
+        <div id="preview" class="preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="modalCancel" type="button" class="secondary">Cancel</button>
+        <button id="modalDone" type="button" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Email gate modal (separate size: modal--email) ====== -->
+  <div id="emailModalBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal modal--email" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
+      <h3 id="emailModalTitle">Enter your email to continue</h3>
+      <!-- removed the visible Email label to keep UI minimal -->
+      <input id="emailInput" type="email" placeholder="you@example.com" />
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <input id="privacyChk" type="checkbox" />
+        <span>I accept the <a id="privacyLink" href="#" target="_blank" rel="noopener">privacy policy</a>.</span>
+      </label>
+      <div class="modal-footer">
+        <button id="emailCancel" type="button" class="secondary">Cancel</button>
+        <button id="emailOk" type="button" class="btn">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Contact slide-over ====== -->
+  <div id="contactBackdrop" class="slideover-backdrop"></div>
+  <aside id="contactPanel" class="slideover" aria-hidden="true">
+    <header>
+      <strong id="contactTitle">Contact Design Team</strong>
+      <button id="contactClose" class="secondary" style="height:32px;padding:0 10px">Close</button>
+    </header>
+    <main>
+      <label for="contactEmail">Your email</label>
+      <input id="contactEmail" type="email" />
+
+      <label for="contactDesc" style="margin-top:10px">Description</label>
+      <textarea id="contactDesc" placeholder="Describe what you need…"></textarea>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+        <label>Attached images</label>
+        <small id="contactCount" class="helptext">0 selected</small>
+      </div>
+      <div id="contactStrip" class="hstrip" aria-live="polite"></div>
+    </main>
+    <footer>
+      <button id="contactSend" class="btn">Send</button>
+    </footer>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ==================== 0) CONNECTION ====================
+    // Set this to your Worker base; fallback to old proxy for legacy behavior
+    const API_BASE = 'https://google.faster-551.workers.dev';
+    const ENDPOINTS = {
+      REGISTER: API_BASE + '/api/register',
+      GENERATE: API_BASE + '/api/generate',
+      MY_IMAGES: API_BASE + '/api/my-images',
+      CONTACT: API_BASE + '/api/contact',
+    };
+    const PROXY_URL_OLD = API_BASE + '/api/generate-gemini';
+
+    // ==================== 1) EDITABLE TEXT =================
+    const CONFIG_TEXT = {
+      title: 'Vitalini Designer',
+      subtitle: 'Select a model, describe a design, optionally pick colours and upload a logo. We use AI to generate a design you can send to our design team. (Results usually take <b>1 minute</b>.)',
+      categoryLabel: 'Select type',
+      modelLabel: 'Select model',
+      briefLabel: 'Your Design',
+      briefPlaceholder: 'Describe your design. (The more detailed the description the better) — logos get overlaid as hints',
+      colorsLabel: 'Design Colors (optional)',
+      logoLabel: 'Upload Logo (optional)',
+      logoNote: '',
+      generate: 'Generate',
+      spinnerMsg: 'Generating… This usually takes 1 minute.',
+      resultsTitle: 'Results',
+      exampleTitle: 'Example',
+      exampleSrc: '',
+      contactBtn: 'Contact Design Team',
+      contactHelp: 'Send your brief and selected images to our designers.',
+      emailGateTitle: 'Enter your email to continue',
+      privacyText: 'I accept the privacy policy.',
+      privacyUrl: '#',
+      contactTitle: 'Contact Design Team',
+      contactEmailLabel: 'Your email',
+      contactDescLabel: 'Description',
+      contactSend: 'Send'
+    };
+
+    const EMAIL_KEY = 'vitalini_email_v1';
+    const PRIVACY_VERSION = '1.0';
+    const PRIVACY_VER_KEY = 'vitalini_privacy_ver_v1';
+
+    const el = (id)=>document.getElementById(id);
+    function applyText(){
+      el('text-title').innerHTML = CONFIG_TEXT.title;
+      el('text-subtitle').innerHTML = CONFIG_TEXT.subtitle;
+      el('text-model-label').textContent = CONFIG_TEXT.modelLabel;
+      const briefEl = el('brief'); if (CONFIG_TEXT.briefPlaceholder) briefEl.placeholder = CONFIG_TEXT.briefPlaceholder;
+      el('text-colors-label').textContent = CONFIG_TEXT.colorsLabel;
+      el('text-logo-label').textContent = CONFIG_TEXT.logoLabel;
+      const note = el('text-logo-note'); if (CONFIG_TEXT.logoNote && CONFIG_TEXT.logoNote.trim()) { note.style.display='block'; note.textContent=CONFIG_TEXT.logoNote;} else { note.style.display='none'; }
+      el('text-generate').textContent = CONFIG_TEXT.generate;
+      el('text-spinner-msg').textContent = CONFIG_TEXT.spinnerMsg;
+      el('text-results-title').textContent = CONFIG_TEXT.resultsTitle;
+      el('text-contact-btn').textContent = CONFIG_TEXT.contactBtn;
+      el('text-contact-help').textContent = CONFIG_TEXT.contactHelp;
+      el('privacyLink').href = CONFIG_TEXT.privacyUrl;
+      el('contactTitle').textContent = CONFIG_TEXT.contactTitle;
+      el('contactSend').textContent = CONFIG_TEXT.contactSend;
+      const catLabel = document.getElementById('text-category-label'); if (catLabel) catLabel.textContent = CONFIG_TEXT.categoryLabel || 'Select type';
+    }
+    function maybeLoadExample(){
+      if (CONFIG_TEXT.exampleSrc && CONFIG_TEXT.exampleSrc.trim()) {
+        el('exampleImg').src = CONFIG_TEXT.exampleSrc;
+        el('exampleBadge').textContent = CONFIG_TEXT.exampleTitle || 'Example';
+        el('exampleCard').style.display = 'block';
+      }
+    }
+
+    // ==================== 2) MODELS (+ categories) ========================
+    const CONFIG_MODELS = [
+      { id: 'VP9655F', label: 'VP9655 Ski Jacket Front view',   cat:'Jackets', preprompt: 'Jacket studio product photo, well lit, professional studio product photo lighting and jacket textures, interesting desing, dont leave design white or bland, it needs to be a little creative even if user inputs something vauge, user design;', baseSrc: './assets/models/VP9655 F.png' },
+      { id: 'VP9655B', label: 'VP9655 Ski Jacket Back view',    cat:'Jackets', preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.', baseSrc: './assets/models/VP9655_base.png' },
+      { id: 'VP38',    label: 'VP38 Race Suit',                 cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
+      { id: 'VP38B',   label: 'VP38 Race Suit Back view',       cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
+      { id: 'VP38F',   label: 'VP38 Race Suit Front view',      cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
+      { id: 'VP106',   label: 'VP106 Vest',                     cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
+      { id: 'VP106F',  label: 'VP106 Vest Front view',          cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
+      { id: 'VP106B',  label: 'VP106 Vest Back view',           cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
+      { id: 'VP649',   label: 'VP649 Ski Pants',                cat:'Pants', preprompt: '', baseSrc: './assets/models/VP649_base.png' }
+    ];
+
+    function uniqueCategories(){ return Array.from(new Set(CONFIG_MODELS.map(m=>m.cat))); }
+    function populateCategories(){ const sel = el('category'); sel.innerHTML=''; for(const c of uniqueCategories()){ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o);} }
+    function populateModels(){ const sel = el('model'); sel.innerHTML=''; const catSel = el('category'); const active = catSel ? catSel.value : null; const list = active? CONFIG_MODELS.filter(m=>m.cat===active): CONFIG_MODELS; for (const m of list){ const o=document.createElement('option'); o.value=m.id; o.textContent=m.label; sel.appendChild(o);} }
+
+    // ==================== 3) RL (client UX) (unchanged) ================
+    const RL_LIMIT = 500; const RL_WINDOW_MS = 24*60*60*1000; const RL_KEY='vitalini_rl_v1'; const USER_KEY='vitalini_uid_v1';
+    const work = el('work'); const ctx = work.getContext('2d');
+    function uuid(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{ const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; const v=c==='x'?r:(r&0x3|0x8); return v.toString(16); }); }
+    function getUserId(){ let id=localStorage.getItem(USER_KEY); if(!id){ id=uuid(); localStorage.setItem(USER_KEY,id);} return id; }
+    function loadRL(){ try{ const raw=localStorage.getItem(RL_KEY); if(raw) return JSON.parse(raw);}catch(e){} const now=Date.now(); const st={used:0,resetAt:now+RL_WINDOW_MS}; localStorage.setItem(RL_KEY, JSON.stringify(st)); return st; }
+    function saveRL(st){ localStorage.setItem(RL_KEY, JSON.stringify(st)); }
+    function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
+    function updateRLStatus(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st);} const left=Math.max(0, RL_LIMIT - st.used); const e=el('rlStatus'); e.textContent = left>0?`You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).`:`Daily limit reached. Resets ${humanTime(st.resetAt)}.`; e.className='rl ' + (left>0?'ok':'bad'); el('go').disabled=left<=0; }
+    function spendCredit(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; } if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
+    function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+
+    // ==================== 4) Canvas composite (unchanged) ===============
+    const DEFAULT_SIZE = '1024x1536';
+    function parseSize(v){ const [w,h]=v.split('x').map(n=>parseInt(n,10)); return {w,h}; }
+    async function urlToBitmap(url){ const res=await fetch(url,{mode:'cors'}); const blob=await res.blob(); return await createImageBitmap(blob); }
+    async function fileToBitmap(file){ return createImageBitmap(file); }
+    const BLANK_SVG = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200"><rect width="800" height="1200" fill="#ffffff"/><g transform="translate(100,60)"><rect x="20" y="40" width="560" height="900" rx="26" ry="26" fill="#f1f5f9" stroke="#cbd5e1"/></g></svg>`;
+    async function drawComposite({size, model, logos}){
+      const {w,h} = parseSize(size);
+      work.width=w; work.height=h; ctx.clearRect(0,0,w,h); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+      let baseBmp=null; try{ if(model.baseSrc) baseBmp=await urlToBitmap(model.baseSrc);}catch(e){ console.warn('Base load failed, using blank:', e); }
+      if(!baseBmp){ const blob=new Blob([BLANK_SVG],{type:'image/svg+xml'}); const url=URL.createObjectURL(blob); baseBmp=await createImageBitmap(await fetch(url).then(r=>r.blob())); URL.revokeObjectURL(url); }
+      const scale=Math.min(w/baseBmp.width, h/baseBmp.height); const bw=baseBmp.width*scale, bh=baseBmp.height*scale; const bx=(w-bw)/2, by=(h-bh)/2; ctx.drawImage(baseBmp,bx,by,bw,bh);
+      const spots=[{x:0.33,y:0.28,w:0.14,h:0.08},{x:0.53,y:0.28,w:0.14,h:0.08},{x:0.76,y:0.45,w:0.12,h:0.08},{x:0.12,y:0.45,w:0.12,h:0.08},{x:0.35,y:0.62,w:0.30,h:0.15}];
+      if(logos && logos.length){ for(let i=0;i<logos.length && i<spots.length;i++){ const bmp=await fileToBitmap(logos[i]); const s=spots[i]; const boxW=Math.floor(w*s.w), boxH=Math.floor(h*s.h); const dx=Math.floor(w*s.x), dy=Math.floor(h*s.y); const sT=Math.min(boxW/bmp.width, boxH/bmp.height); const dw=Math.floor(bmp.width*sT), dh=Math.floor(bmp.height*sT); const ox=dx+Math.floor((boxW-dw)/2), oy=dy+Math.floor((boxH-dh)/2); ctx.save(); ctx.globalAlpha=.95; ctx.imageSmoothingQuality='high'; ctx.drawImage(bmp, ox, oy, dw, dh); ctx.restore(); } }
+      return new Promise(resolve=> work.toBlob(resolve,'image/png',0.98));
+    }
+
+    // ===== Colors helpers (unchanged) =====
+    const selectedColors = [null,null,null];
+    function hexUpper(v){ return (v||'').toUpperCase(); }
+    function buildColorsLine(colors){ const present = colors.map((c,i)=> c? `${i+1}: ${hexUpper(c)}`: null).filter(Boolean); return present.length ? `Primary colours: ${present.join('  ')}` : ''; }
+
+    // === Custom picker math (HSV ↔ RGB) ===
+    function hsvToRgb(h, s, v){ const f=(n,k=(n+h/60)%6)=> v - v*s*Math.max(Math.min(k,4-k,1),0); const r=Math.round(f(5)*255), g=Math.round(f(3)*255), b=Math.round(f(1)*255); return {r,g,b}; }
+    function rgbToHex(r,g,b){ return '#' + [r,g,b].map(x=> x.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+    function hexToRgb(hex){ const m=hex.replace('#',''); const r=parseInt(m.slice(0,2),16), g=parseInt(m.slice(2,4),16), b=parseInt(m.slice(4,6),16); return {r,g,b}; }
+    function rgbToHsv(r,g,b){ r/=255; g/=255; b/=255; const v=Math.max(r,g,b), c=v-Math.min(r,g,b); const h=c? (v===r?(g-b)/c%6: v===g? (b-r)/c+2: (r-g)/c+4)*60:0; const s=v?c/v:0; return {h:(h+360)%360, s, v}; }
+
+    // === Modal picker state (unchanged sizes) ===
+    let cmBackdrop, cmModal, cmDone, cmCancel, cmOpenIdx = null;
+    let hue=0, sat=1, val=1; // HSV
+    const svSize = { w:240, h:160 };
+    function setSVBackground(){ el('sv').style.backgroundColor = `hsl(${hue}, 100%, 50%)`; }
+    function updatePreview(){ const {r,g,b}=hsvToRgb(hue, sat, val); el('preview').style.background = rgbToHex(r,g,b); }
+    function positionCursor(){ const pad=4; const x=sat*svSize.w, y=(1-val)*svSize.h; const xC=Math.min(Math.max(x, pad), svSize.w - pad); const yC=Math.min(Math.max(y, pad), svSize.h - pad); const c = el('svCursor'); c.style.left = xC + 'px'; c.style.top  = yC + 'px'; }
+    function updateHueThumb(){ const {r,g,b} = hsvToRgb(hue, 1, 1); const hex = rgbToHex(r,g,b); const thumb = el('hue'); thumb.style.setProperty('--thumb-color', hex); const L = 0.2126*(r/255) + 0.7152*(g/255) + 0.0722*(b/255); thumb.style.setProperty('--thumb-border', L > 0.55 ? '#111' : '#fff'); }
+    function openColorModal(idx){ cmOpenIdx = idx; const current = selectedColors[idx]; if(current){ const {r,g,b} = hexToRgb(current); const hsv = rgbToHsv(r,g,b); hue = Math.round(hsv.h); sat = hsv.s; val = hsv.v; } else { hue = parseInt(el('hue').value,10) || hue; sat = 1; val = 1; } el('hue').value = String(hue); setSVBackground(); positionCursor(); updatePreview(); updateHueThumb(); el('colorModalBackdrop').style.display = 'flex'; }
+    function closeColorModal(){ el('colorModalBackdrop').style.display = 'none'; cmOpenIdx=null; }
+    function initColorModal(){ cmBackdrop = el('colorModalBackdrop'); cmModal = el('colorModal'); cmDone = el('modalDone'); cmCancel = el('modalCancel'); cmCancel.addEventListener('click', closeColorModal); cmBackdrop.addEventListener('click', (e)=>{ if(e.target === cmBackdrop) closeColorModal(); }); document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeColorModal(); }); el('hue').addEventListener('input', (e)=>{ hue = parseInt(e.target.value,10)||0; setSVBackground(); updatePreview(); updateHueThumb(); }); const sv = el('sv'); function setFromEvent(ev){ const rect = sv.getBoundingClientRect(); const x = Math.min(Math.max(0, (ev.clientX - rect.left)), rect.width); const y = Math.min(Math.max(0, (ev.clientY - rect.top)),  rect.height); sat = x/rect.width; val = 1 - y/rect.height; positionCursor(); updatePreview(); } let dragging=false; sv.addEventListener('pointerdown', (ev)=>{ dragging=true; sv.setPointerCapture(ev.pointerId); setFromEvent(ev); }); sv.addEventListener('pointermove', (ev)=>{ if(dragging) setFromEvent(ev); }); sv.addEventListener('pointerup',   ()=>{ dragging=false; }); sv.addEventListener('pointercancel', ()=> dragging=false ); cmDone.addEventListener('click', ()=>{ if(cmOpenIdx===null) return closeColorModal(); const {r,g,b} = hsvToRgb(hue, sat, val); const hex = rgbToHex(r,g,b); selectedColors[cmOpenIdx] = hex; const sw = document.querySelector(`.swatch[data-idx="${cmOpenIdx}"]`); if(sw){ sw.style.background = hex; sw.classList.remove('empty'); sw.classList.add('hasColor'); } closeColorModal(); }); }
+    function initColors(){ document.querySelectorAll('#colorRow .swatch').forEach((sw)=>{ const idx = parseInt(sw.dataset.idx,10); const clear = sw.querySelector('.clear'); sw.addEventListener('click', (ev)=>{ if(ev.target===clear) return; openColorModal(idx); }); clear.addEventListener('click', (ev)=>{ ev.stopPropagation(); selectedColors[idx]=null; sw.style.background='#ffffff'; sw.classList.remove('hasColor'); sw.classList.add('empty'); }); }); }
+
+    function buildPrompt(model, userText, colors){ const base='High‑fidelity studio product image, clean background, accurate materials and stitching. Integrate overlaid logos cleanly (no warping). Output a square e‑commerce ready render.'; const colorLine = buildColorsLine(colors); return [model.preprompt, userText, colorLine, base].filter(Boolean).join('\n\n'); }
+
+    // ==================== 5) Proxy (Gemini) with new endpoints ===========
+    function b64ToBlob(b64, mime='image/png'){ const bin=atob(b64); const len=bin.length; const bytes=new Uint8Array(len); for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return new Blob([bytes],{type:mime}); }
+
+    async function callGenerateNew({prompt, size, compositeBlob, modelId}){
+      const userId = getUserId();
+      const form = new FormData();
+      form.append('prompt', prompt);
+      form.append('size', size);
+      form.append('user_id', userId);
+      form.append('model_id', modelId);
+      form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
+
+      const res = await fetch(ENDPOINTS.GENERATE, { method:'POST', body: form });
+      if (res.status === 404) throw new Error('FALLBACK');
+      if (!res.ok) { const text=await res.text().catch(()=> ''); throw new Error(`Proxy error ${res.status}: ${text}`); }
+      return await res.json(); // { data: [{ id, seq, url, thumb_url? }, ...] }
+    }
+
+    async function callGenerateLegacy({prompt, size, compositeBlob}){
+      const userId = getUserId();
+      const form = new FormData();
+      form.append('prompt', prompt);
+      form.append('size', size);
+      form.append('user_id', userId);
+      form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
+
+      const res = await fetch(PROXY_URL_OLD, { method:'POST', body: form });
+      if (res.status===429){ const info=await res.json().catch(()=>({})); throw new Error(info.message||'Rate limit exceeded.'); }
+      if (!res.ok){ const text=await res.text().catch(()=> ''); throw new Error(`Proxy error ${res.status}: ${text}`); }
+      return await res.json(); // { data: [{ b64_json }] }
+    }
+
+    // ==================== 6) UI FLOW & persistence ======================
+    function showSpinner(on){ el('spinner').style.display = on? 'flex':'none'; }
+    async function saveImage(blob){ const file=new File([blob],'design.png',{type:'image/png'}); try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({ files:[file], title:'Design draft' }); return; } }catch(e){} const a=document.createElement('a'); const url=URL.createObjectURL(blob); a.href=url; a.download='design.png'; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1e3); }
+
+    // Persistent gallery cache per-user (server is source of truth)
+    const GALLERY_KEY = 'vitalini_gallery_v1';
+    function loadGalleryCache(){ try{ const raw=localStorage.getItem(GALLERY_KEY); if(raw) return JSON.parse(raw);}catch{} return {}; }
+    function saveGalleryCache(map){ localStorage.setItem(GALLERY_KEY, JSON.stringify(map)); }
+
+    function getUserCache(){ const map = loadGalleryCache(); const uid = getUserId(); return map[uid] || { lastSeq:0, items:[] }; }
+    function setUserCache(data){ const map = loadGalleryCache(); map[getUserId()] = data; saveGalleryCache(map); }
+
+    // Render a gallery card (supports blob or URL). Added optional {prepend}
+    function addToGalleryItem({url, blob, seq}, {prepend=true}={}){
+      const g=el('gallery'); el('emptyState').style.display='none';
+      const card=document.createElement('div'); card.className='thumb';
+      const badge=document.createElement('span'); badge.className='badge'; badge.textContent = seq ? `#${seq}` : '#?';
+      const img=document.createElement('img'); img.loading='lazy'; img.alt='Generated product';
+      let objectUrl=null;
+      if (blob){ objectUrl = URL.createObjectURL(blob); img.src = objectUrl; } else { img.src = url; }
+      const btn=document.createElement('button'); btn.className='savefab'; btn.type='button'; btn.textContent='Save'; btn.addEventListener('click', ()=> saveImage(blob ? blob : null));
+      card.append(badge, img, btn);
+      if (prepend) g.prepend(card); else g.appendChild(card);
+      if (objectUrl){ setTimeout(()=>{ /* keep for a while */ }, 10000); }
+    }
+
+    function mergeServerImages(serverItems){
+      // Overwrite local items with server canonical URLs/seq
+      const cache = getUserCache();
+      const byUrl = new Map(cache.items.map(i=>[i.url,i]));
+      for (const it of serverItems) {
+        byUrl.set(it.url, { url: it.url, seq: it.seq, created_at: it.created_at||Date.now() });
+      }
+      const merged = Array.from(byUrl.values()).sort((a,b)=> (b.seq||0)-(a.seq||0));
+      const lastSeq = merged.reduce((m,i)=> Math.max(m, i.seq||0), 0);
+      setUserCache({ lastSeq, items: merged });
+      return { lastSeq, items: merged };
+    }
+
+    async function loadMyImages(){
+      const uid = getUserId();
+      try{
+        const res = await fetch(`${ENDPOINTS.MY_IMAGES}?user_id=${encodeURIComponent(uid)}`);
+        if (res.ok){ const data = await res.json(); const merged = mergeServerImages(data.data||[]); renderGallery(merged.items); return; }
+      }catch{}
+      const cache = getUserCache(); renderGallery(cache.items);
+    }
+
+    function renderGallery(items){
+      const g=el('gallery'); g.innerHTML='';
+      if(!items || !items.length){ el('emptyState').style.display='block'; return; }
+      el('emptyState').style.display='none';
+      // items already newest->oldest; append to preserve order (newest at top)
+      for (const it of items){ addToGalleryItem({ url: it.url, seq: it.seq }, { prepend:false }); }
+    }
+
+    function nextLocalSeq(){ const cache=getUserCache(); const seq=(cache.lastSeq||0)+1; cache.lastSeq=seq; cache.items.unshift({ url:`local:${seq}`, seq }); setUserCache(cache); return seq; }
+
+    async function generate(){
+      updateRLStatus(); if(!spendCredit()){ el('status').textContent='Daily limit reached.'; return; }
+      if (needsEmailGate()){ openEmailModal(); refundCredit(); return; }
+      try{
+        el('go').disabled=true; el('status').textContent='Preparing…'; showSpinner(true);
+        const userBrief = el('brief').value.trim();
+        const modelId = el('model').value; const model = CONFIG_MODELS.find(m=>m.id===modelId) || CONFIG_MODELS[0];
+        const prompt = buildPrompt(model, userBrief, selectedColors);
+        const logos = [...el('logos').files];
+        const compositeBlob = await drawComposite({ size: DEFAULT_SIZE, model, logos });
+
+        // Try new endpoint first
+        try{
+          const data = await callGenerateNew({ prompt, size: DEFAULT_SIZE, compositeBlob, modelId });
+          const items = data.data||[];
+          if (!items.length) throw new Error('No image returned');
+          const merged = mergeServerImages(items);
+          for (const it of items){ addToGalleryItem({ url: it.url, seq: it.seq }); }
+          el('status').textContent='Done.'; // unified status
+        } catch(err){
+          if (String(err.message)==='FALLBACK'){
+            const data = await callGenerateLegacy({ prompt, size: DEFAULT_SIZE, compositeBlob });
+            const blobs = (data.data||[]).map(x=> b64ToBlob(x.b64_json, 'image/png'));
+            for (const b of blobs){ const seq = nextLocalSeq(); addToGalleryItem({ blob: b, seq }); }
+            el('status').textContent='Done.'; // no "(local)" label
+          } else { throw err; }
+        }
+      } catch(err){ console.error(err); el('status').textContent = 'Error: ' + err.message; }
+      finally { el('go').disabled=false; showSpinner(false); }
+    }
+
+    document.getElementById('go').addEventListener('click', generate);
+
+    // ============== Self-tests (non-blocking, unchanged essentials) ===============
+    try{
+      console.assert(parseSize('1024x1024').w===1024 && parseSize('1024x1024').h===1024, 'parseSize failed');
+      console.assert(buildColorsLine(['#FF0000', null, '#00FF00']).startsWith('Primary colours:'), 'buildColorsLine failed for two colours');
+      console.assert(buildColorsLine([null,null,null])==='', 'buildColorsLine should be empty when no colours');
+      console.assert(document.querySelectorAll('.swatch').length===3, 'Expected three swatches');
+      const bg = getComputedStyle(document.getElementById('sv')).backgroundImage;
+      console.assert(bg.includes('linear-gradient') && bg.split('linear-gradient').length>=3, 'SV gradient layers missing');
+    }catch(e){ console.warn('Self-test failed', e); }
+
+    // ==================== 7) Email gate ====================
+    function needsEmailGate(){ const e=localStorage.getItem(EMAIL_KEY); const pv=localStorage.getItem(PRIVACY_VER_KEY); return !e || pv!==PRIVACY_VERSION; }
+    function openEmailModal(){ el('emailModalBackdrop').style.display='flex'; }
+    function closeEmailModal(){ el('emailModalBackdrop').style.display='none'; }
+    el('emailCancel').addEventListener('click', closeEmailModal);
+    el('emailOk').addEventListener('click', async ()=>{
+      const email = el('emailInput').value.trim(); const chk = el('privacyChk').checked;
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email'); return; }
+      if(!chk){ toast('Please accept the privacy policy'); return; }
+      try{
+        const body = { user_id:getUserId(), email, privacy_version:PRIVACY_VERSION };
+        const r = await fetch(ENDPOINTS.REGISTER, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!r.ok){ if(r.status===404){ /* allow local only*/ } else { const t=await r.text().catch(()=> ''); throw new Error(t); } }
+        localStorage.setItem(EMAIL_KEY, email);
+        localStorage.setItem(PRIVACY_VER_KEY, PRIVACY_VERSION);
+        closeEmailModal();
+        toast('Saved email');
+      }catch(err){ console.error(err); toast('Could not save email on server (using local).'); localStorage.setItem(EMAIL_KEY, email); localStorage.setItem(PRIVACY_VER_KEY, PRIVACY_VERSION); closeEmailModal(); }
+    });
+
+    // ==================== 8) Contact panel ====================
+    const contact = { open:false, selected:new Set(), data:[] };
+    function openContact(){ el('contactBackdrop').style.display='block'; el('contactPanel').classList.add('open'); contact.open=true; el('contactEmail').value = localStorage.getItem(EMAIL_KEY)||''; contact.selected = new Set(); refreshContactStrip(); }
+    function closeContact(){ el('contactPanel').classList.remove('open'); el('contactBackdrop').style.display='none'; contact.open=false; }
+    el('contactBtn').addEventListener('click', ()=>{ if (needsEmailGate()) { openEmailModal(); return; } openContact(); });
+    el('contactClose').addEventListener('click', closeContact);
+    el('contactBackdrop').addEventListener('click', closeContact);
+
+    function getImgSrcBySeq(seq){ const cards=[...document.querySelectorAll('#gallery .thumb')]; for(const card of cards){ const badge=card.querySelector('.badge'); if(badge && badge.textContent.trim()==='#'+String(seq)){ const img=card.querySelector('img'); if(img) return img.src; } } return null; }
+
+    function refreshContactStrip(){
+      const strip = el('contactStrip'); strip.innerHTML='';
+      const cache = getUserCache();
+      contact.data = cache.items;
+      // Default: select all on open
+      if (!contact.selected.size){ cache.items.forEach(i=> contact.selected.add(i.url)); }
+      for (const it of cache.items){
+        const d=document.createElement('div'); d.className='mini' + (contact.selected.has(it.url)? '' : ' off');
+        // Resolve a displayable src even for local-only images
+        let src = it.url;
+        if (!/^https?:/i.test(src)){
+          const alt = getImgSrcBySeq(it.seq);
+          if (alt) src = alt;
+        }
+        const img=document.createElement('img'); img.src=src; img.alt=`#${it.seq}`;
+        const num=document.createElement('span'); num.className='num'; num.textContent=`#${it.seq||'?'} `;
+        const x=document.createElement('button'); x.className='x'; x.type='button'; x.textContent='×';
+        x.addEventListener('click', ()=>{ if(contact.selected.has(it.url)){ contact.selected.delete(it.url); } else { contact.selected.add(it.url); } d.classList.toggle('off'); updateContactCount(); });
+        d.append(num,img,x); strip.appendChild(d);
+      }
+      updateContactCount();
+    }
+    function updateContactCount(){ el('contactCount').textContent = `${contact.selected.size} selected`; }
+
+    el('contactSend').addEventListener('click', async ()=>{
+      const email = el('contactEmail').value.trim(); const description = el('contactDesc').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast('Enter a valid email'); return; }
+      const urls = Array.from(contact.selected); // allow 0 images
+      try{
+        const body = { user_id:getUserId(), email, description, image_urls: urls };
+        const r = await fetch(ENDPOINTS.CONTACT, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if (!r.ok){ if(r.status===404){ toast('Contact endpoint not deployed yet.'); return; } const t=await r.text().catch(()=> ''); throw new Error(t); }
+        toast('Sent to design team.'); closeContact();
+      }catch(err){ console.error(err); toast('Could not send. Check connection.'); }
+    });
+
+    // ==================== 9) Logo list with remove X ====================
+    const logosInput = el('logos'); const logoList = el('logoList');
+    function refreshLogoList(){ logoList.innerHTML=''; const files=[...logosInput.files]; files.forEach((f,idx)=>{ const item=document.createElement('div'); item.className='file-item'; const name=document.createElement('span'); name.className='file-name'; name.textContent = `${f.name} (${Math.round(f.size/1024)} KB)`; const rm=document.createElement('button'); rm.className='file-remove'; rm.type='button'; rm.textContent='×'; rm.title='Remove'; rm.addEventListener('click', ()=> removeLogoAt(idx)); item.append(name,rm); logoList.appendChild(item); }); }
+    function removeLogoAt(index){ const dt = new DataTransfer(); const files=[...logosInput.files]; files.forEach((f,i)=>{ if(i!==index) dt.items.add(f); }); logosInput.files = dt.files; refreshLogoList(); }
+    logosInput.addEventListener('change', refreshLogoList);
+
+    // ==================== 10) Toast ====================
+    function toast(msg){ const t=el('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>{ t.style.display='none'; }, 2200); }
+
+    // ==================== init ====================
+    (function init(){
+      applyText();
+      populateCategories();
+      populateModels();
+      el('category').addEventListener('change', populateModels);
+      updateRLStatus();
+      initColors();
+      initColorModal();
+      maybeLoadExample();
+      loadMyImages();
+    })();
+  </script>
+</body>
+</html>
