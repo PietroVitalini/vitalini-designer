@@ -249,6 +249,9 @@
       CONTACT: API_BASE + '/api/contact',
     };
     const PROXY_URL_OLD = API_BASE + '/api/generate-gemini';
+    // use a valid Gemini image model id for the new API
+    const AI_IMAGE_MODEL_ID = 'gemini-2.5-flash-image-preview';
+
 
     // ==================== 1) EDITABLE TEXT =================
     const CONFIG_TEXT = {
@@ -389,7 +392,7 @@
       form.append('prompt', prompt);
       form.append('size', size);
       form.append('user_id', userId);
-      form.append('model_id', modelId);
+      form.append('model_id', AI_IMAGE_MODEL_ID);
       form.append('image', new File([compositeBlob], 'base.png', {type:'image/png'}));
 
       const res = await fetch(ENDPOINTS.GENERATE, { method:'POST', body: form });
