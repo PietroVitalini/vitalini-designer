@@ -313,15 +313,15 @@
 
     // ==================== 2) MODELS (+ categories) ========================
     const CONFIG_MODELS = [
-      { id: 'VP9655F', label: 'VP9655 Ski Jacket Front view',   cat:'Jackets', preprompt: 'Jacket studio product photo, well lit, professional studio product photo lighting and jacket textures, interesting desing, dont leave design white or bland, (if logo is provided by user integrate logo well) it needs to be a little creative even if user inputs something vauge, user design;', baseSrc: './assets/models/VP9655 F.png', size: '1536x1024' },
-      { id: 'VP9655B', label: 'VP9655 Ski Jacket Back view',    cat:'Jackets', preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.', baseSrc: './assets/models/VP9655_base.png' },
-      { id: 'VP38',    label: 'VP38 Race Suit',                 cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
-      { id: 'VP38B',   label: 'VP38 Race Suit Back view',       cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
-      { id: 'VP38F',   label: 'VP38 Race Suit Front view',      cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png' },
-      { id: 'VP106',   label: 'VP106 Vest',                     cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
-      { id: 'VP106F',  label: 'VP106 Vest Front view',          cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
-      { id: 'VP106B',  label: 'VP106 Vest Back view',           cat:'Vests', preprompt: '', baseSrc: './assets/models/VP106_base.png' },
-      { id: 'VP649',   label: 'VP649 Ski Pants',                cat:'Pants', preprompt: '', baseSrc: './assets/models/VP649_base.png' }
+      { id: 'VP9655F', label: 'VP9655 Ski Jacket Front view',   cat:'Jackets',    preprompt: 'Jacket studio product photo, well lit, professional studio product photo lighting and jacket textures, interesting desing, dont leave design white or bland, (if logo is provided by user integrate logo well) it needs to be a little creative even if user inputs something vauge, user design;', baseSrc: './assets/models/VP9655 F.png', size: '1024x1024' },
+      { id: 'VP9655B', label: 'VP9655 Ski Jacket Back view',    cat:'Jackets',    preprompt: 'Studio product render of the VP9655 model. Crisp front view, correct proportions and panel lines. Integrate any provided logos tastefully; maintain visibility and avoid warping.', baseSrc: './assets/models/VP9655_base.png', size: '1024x1024' },
+      { id: 'VP38',    label: 'VP38 Race Suit',                 cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png', size: '1024x1536' },
+      { id: 'VP38B',   label: 'VP38 Race Suit Back view',       cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png', size: '1024x1536' },
+      { id: 'VP38F',   label: 'VP38 Race Suit Front view',      cat:'Race Suits', preprompt: 'Studio product render of the VP38 model. Keep seams and zipper path accurate. Lighting soft and even; neutral background.', baseSrc: './assets/models/VP38_base.png', size: '1024x1536' },
+      { id: 'VP106',   label: 'VP106 Vest',                     cat:'Vests',      preprompt: '', baseSrc: './assets/models/VP106_base.png', size: '1024x1024' },
+      { id: 'VP106F',  label: 'VP106 Vest Front view',          cat:'Vests',      preprompt: '', baseSrc: './assets/models/VP106_base.png', size: '1024x1024' },
+      { id: 'VP106B',  label: 'VP106 Vest Back view',           cat:'Vests',      preprompt: '', baseSrc: './assets/models/VP106_base.png', size: '1024x1024' },
+      { id: 'VP649',   label: 'VP649 Ski Pants',                cat:'Pants',      preprompt: '', baseSrc: './assets/models/VP649_base.png', size: '1536x1024' }
     ];
 
     function uniqueCategories(){ return Array.from(new Set(CONFIG_MODELS.map(m=>m.cat))); }
@@ -338,7 +338,9 @@
     function humanTime(ms){ const d=new Date(ms); return d.toLocaleString(); }
     function updateRLStatus(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; saveRL(st);} const left=Math.max(0, RL_LIMIT - st.used); const e=el('rlStatus'); e.textContent = left>0?`You have ${left}/${RL_LIMIT} generations left (resets ${humanTime(st.resetAt)}).`:`Daily limit reached. Resets ${humanTime(st.resetAt)}.`; e.className='rl ' + (left>0?'ok':'bad'); el('go').disabled=left<=0; }
     function spendCredit(){ const st=loadRL(); const now=Date.now(); if(now>st.resetAt){ st.used=0; st.resetAt=now+RL_WINDOW_MS; } if(st.used>=RL_LIMIT) return false; st.used++; saveRL(st); updateRLStatus(); return true; }
-    function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); } }
+    function refundCredit(){ const st=loadRL(); if(st.used>0){ st.used--; saveRL(st); updateRLStatus(); }
+
+    }
 
     // ==================== 4) Canvas composite (unchanged) ===============
     const DEFAULT_SIZE = '1024x1536';
@@ -482,11 +484,12 @@
         const modelId = el('model').value; const model = CONFIG_MODELS.find(m=>m.id===modelId) || CONFIG_MODELS[0];
         const prompt = buildPrompt(model, userBrief, selectedColors);
         const logos = [...el('logos').files];
-        const compositeBlob = await drawComposite({ size: DEFAULT_SIZE, model, logos });
+        const selectedSize = (model.size && /^\d+x\d+$/.test(model.size)) ? model.size : DEFAULT_SIZE;
+        const compositeBlob = await drawComposite({ size: selectedSize, model, logos });
 
         // Try new endpoint first
         try{
-          const data = await callGenerateNew({ prompt, size: DEFAULT_SIZE, compositeBlob, modelId });
+          const data = await callGenerateNew({ prompt, size: selectedSize, compositeBlob, modelId });
           const items = data.data||[];
           if (!items.length) throw new Error('No image returned');
           const merged = mergeServerImages(items);
@@ -494,7 +497,7 @@
           el('status').textContent='Done.'; // unified status
         } catch(err){
           if (String(err.message)==='FALLBACK'){
-            const data = await callGenerateLegacy({ prompt, size: DEFAULT_SIZE, compositeBlob });
+            const data = await callGenerateLegacy({ prompt, size: selectedSize, compositeBlob });
             const blobs = (data.data||[]).map(x=> b64ToBlob(x.b64_json, 'image/png'));
             for (const b of blobs){ const seq = nextLocalSeq(); addToGalleryItem({ blob: b, seq }); }
             el('status').textContent='Done.'; // no "(local)" label
